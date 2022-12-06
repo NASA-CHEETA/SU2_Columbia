@@ -2,8 +2,8 @@
  * \file CConfig.hpp
  * \brief All the information about the definition of the physical problem.
  *        The subroutines and functions are in the <i>CConfig.cpp</i> file.
- * \author F. Palacios, T. Economon, B. Tracey
- * \version 7.4.0 "Blackbird"
+ * \author F. Palacios, T. Economon, B. Tracey, P. Ranjan
+ * \version 2.0.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -1145,6 +1145,7 @@ private:
   su2double uq_delta_b;         /*!< \brief Parameter used to perturb eigenvalues of Reynolds Stress Matrix */
   unsigned short eig_val_comp;  /*!< \brief Parameter used to determine type of eigenvalue perturbation */
   su2double uq_urlx;            /*!< \brief Under-relaxation factor */
+  su2double mdo_time;           /*!< \breif Target time iteration to initiate aero-elastic simulations. */
   bool uq_permute;              /*!< \brief Permutation of eigenvectors */
 
   unsigned long pastix_fact_freq;  /*!< \brief (Re-)Factorization frequency for PaStiX */
@@ -1206,6 +1207,29 @@ private:
    there would be no list of all the config file options. ---*/
 
   map<string, bool> all_options;
+
+  /*!
+  * \brief St options for MDA/O using preCICE
+  */
+  bool precice_usage;	/*!< \brief Usage of preCICE for FSI simulations */
+  bool precice_verbosityLevel_high;	/*!< \brief Verbosity level of the preCICE adapter for FSI simulations */
+  bool precice_loadRamping; /*!< \brief Usage of preCICE load ramping procedure for FSI simulations */
+  unsigned long precice_loadRampingDuration; /*!< \brief Number of physical time steps for which the load ramping procedure is applied */
+  unsigned long precice_numberWetSurfaces; /*!< \brief Number of different wet surfaces */
+  string preciceConfigFileName;	/*!< \brief Name of the preCICE configuration file */
+  string preciceWetSurfaceMarkerName;	/*!< \brief Name of the wet surface marker (from the mesh file) that the preCICE adapter will use for identification of the wet surface */
+
+/* Boolean for Steady (Static) MDA/O */
+ bool Steady_MDO;
+
+ /* Boolean for time-resolved (dynamic) MDA/O */
+ bool Unsteady_MDO;
+
+/* Enable/disable CL_Driver during MDA/O---*/
+ bool enable_CL_driver = true;
+
+/*---Arbitrary counter---*/
+ int counter = 0;
 
   /*--- brief param is a map from the option name (config file string) to its decoder (the specific child
    class of COptionBase that turns the string into a value) ---*/
@@ -9071,6 +9095,50 @@ public:
    * \brief Get if AD preaccumulation should be performed.
    */
   bool GetAD_Preaccumulation(void) const { return AD_Preaccumulation;}
+
+  /*!
+   * \brief Check if the simulation we are running uses preCICE for MDA/O
+   * \return True if we use preCICE, false otherwise.
+   */
+  bool GetpreCICE_Usage(void);
+
+  /*!
+   * \brief Check if the verbosity level of the preCICE adapter is high or not
+   * \return True if verbosity level is high, false otherwise.
+   */
+  bool GetpreCICE_VerbosityLevel_High(void);
+
+  /*!
+   * \brief Check if the load ramping procedure of the preCICE adapter is activated or not
+   * \return True if the procedure is applied, false otherwise.
+   */
+  bool GetpreCICE_LoadRamping(void);
+
+  /*!
+   * \brief Get the name of the preCICE configuration file
+   * \return preCICE configuration file name as string
+   */
+  string GetpreCICE_ConfigFileName(void);
+
+  /*!
+   * \brief Get the name of the wet surface marker used in the mesh file
+   * \return Wet surface marker name as string
+   */
+  string GetpreCICE_WetSurfaceMarkerName(void) const {return preciceWetSurfaceMarkerName;}
+
+  /*!
+   * \brief Get the number of physical time steps for which the load ramping is applied
+   * \return Number of corresponding time steps for which the force vector is continuously increased up to the original value
+   */
+  unsigned long GetpreCICE_LoadRampingDuration(void);
+
+  /*!
+   * \brief Get the number of wet surfaces in the FSI simulation
+   * \return Number of wet surfaces
+   */
+  unsigned long GetpreCICE_NumberWetSurfaces(void);
+
+
 
   /*!
    * \brief Get the heat equation.

@@ -8,6 +8,8 @@ option('enable-pywrapper',  type : 'boolean', value : false, description: 'enabl
 option('enable-normal',  type : 'boolean', value : true, description: 'enable normal build')
 option('enable-mkl', type : 'boolean', value : false, description: 'enable Intel-MKL support')
 option('mkl_root', type : 'string', value : '/opt/intel/mkl', description: 'root of Intel-MKL installation (only for non-intel compilers)')
+option('enable-mdo', type : 'boolean', value : false, description: 'enable MDO support')
+option('mdo_root', type : 'string', value : '$PRECICE_PREFIX', description: 'root of MDO libraries')
 option('enable-openblas', type : 'boolean', value : false, description: 'enable BLAS and LAPACK support via OpenBLAS')
 option('blas-name', type : 'string', value : 'openblas', description: 'name of the BLAS/LAPACK dependency')
 option('enable-pastix', type : 'boolean', value : false, description: 'enable PaStiX support')

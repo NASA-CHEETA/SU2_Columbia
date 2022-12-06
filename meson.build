@@ -1,7 +1,7 @@
 project('SU2', 'c', 'cpp',
-        version: '7.4.0 "Blackbird"',
+        version: '2.2.0 "Columbia"',
         license: 'LGPL2',
-        default_options: ['buildtype=release',
+        default_options: ['buildtype=custom',
                           'warning_level=0',
                           'c_std=c99',
                           'cpp_std=c++11'])
@@ -215,6 +215,12 @@ if get_option('enable-librom')
 
 endif
 
+# MDA/O dependencies
+if get_option('enable-mdo')
+  mdo_dep = dependency('libprecice', required: true, version : '>=2', method : 'pkg-config')
+  su2_deps += mdo_dep
+endif
+
 mel_dep = declare_dependency(include_directories: 'externals/mel')
 su2_deps += mel_dep
 
@@ -284,6 +290,7 @@ message('''---------------------------------------------------------------------
          PaStiX:         @9@
          Mixed Float:    @10@
          libROM:         @11@
+         MDA/O:          @12@
 
          Please be sure to add the $SU2_HOME and $SU2_RUN environment variables,
          and update your $PATH (and $PYTHONPATH if applicable) with $SU2_RUN
@@ -295,10 +302,10 @@ message('''---------------------------------------------------------------------
          export PATH=$PATH:$SU2_RUN
          export PYTHONPATH=$PYTHONPATH:$SU2_RUN
 
-         Use './ninja -C @12@ install' to compile and install SU2
+         Use './ninja -C build install' to compile and install SU2
 '''.format(get_option('prefix')+'/bin', meson.source_root(), get_option('enable-tecio'), get_option('enable-cgns'),
            get_option('enable-autodiff'), get_option('enable-directdiff'), get_option('enable-pywrapper'), get_option('enable-mkl'),
-           get_option('enable-openblas'), get_option('enable-pastix'), get_option('enable-mixedprec'), get_option('enable-librom'), meson.build_root().split('/')[-1]))
+           get_option('enable-openblas'), get_option('enable-pastix'), get_option('enable-mixedprec'), get_option('enable-librom'),get_option('enable-mdo'), meson.build_root().split('/')[-1]))
 
 if get_option('enable-mpp')
   message(''' To run SU2 with Mutation++ library, add these lines to your .bashrc file:

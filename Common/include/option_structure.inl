@@ -2,8 +2,8 @@
  * \file option_structure.inl
  * \brief Template derived classes from COption, defined here as we
  *        only include them where needed to reduce compilation time.
- * \author J. Hicken, B. Tracey
- * \version 7.4.0 "Blackbird"
+ * \author J. Hicken, B. Tracey, P. Ranjan
+ * \version 2.0.0 "Columbia"
  *
  * SU2 Project Website: https://su2code.github.io
  *

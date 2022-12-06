@@ -1,8 +1,8 @@
 /*!
  * \file CConfig.cpp
  * \brief Main file for managing the config file
- * \author F. Palacios, T. Economon, B. Tracey, H. Kline
- * \version 7.4.0 "Blackbird"
+ * \author F. Palacios, T. Economon, B. Tracey, H. Kline, P.Ranjan
+ * \version 2.0.0 "Columbia"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -563,6 +563,19 @@ void CConfig::addPythonOption(const string name) {
   COptionBase* val = new COptionPython(name);
   option_map.insert(pair<string, COptionBase *>(name, val));
 }
+
+bool CConfig::GetpreCICE_Usage(void) { return precice_usage; }
+
+bool CConfig::GetpreCICE_VerbosityLevel_High(void) { return precice_verbosityLevel_high; }
+
+bool CConfig::GetpreCICE_LoadRamping(void) { return precice_loadRamping; }
+
+string CConfig::GetpreCICE_ConfigFileName(void) { return preciceConfigFileName; }
+
+unsigned long CConfig::GetpreCICE_LoadRampingDuration(void) { return precice_loadRampingDuration; }
+
+unsigned long CConfig::GetpreCICE_NumberWetSurfaces(void) { return precice_numberWetSurfaces; }
+
 
 unsigned short CConfig::GetnZone(string val_mesh_filename, unsigned short val_format) {
 
@@ -2874,6 +2887,33 @@ void CConfig::SetConfig_Options() {
   /*!\brief ROM_SAVE_FREQ \n DESCRIPTION: How often to save snapshots for unsteady problems.*/
   addUnsignedShortOption("ROM_SAVE_FREQ", rom_save_freq, 1);
 
+  addBoolOption("PRECICE_USAGE", precice_usage, false);
+
+  addBoolOption("STEADY_MDO", Steady_MDO, false);
+  addBoolOption("UNSTEADY_MDO", Unsteady_MDO, false);
+  addDoubleOption("MDO_INIT", mdo_time, 0);
+
+  /* DESCRIPTION: Activate high verbosity level of preCICE adapter for FSI coupling */
+  addBoolOption("PRECICE_VERBOSITYLEVEL_HIGH", precice_verbosityLevel_high, false);
+
+  /* DESCRIPTION: Activate preCICE load ramping procedure to stabilize simulations during the first time steps */
+  addBoolOption("PRECICE_LOADRAMPING", precice_loadRamping, false);
+
+  /* DESCRIPTION:  preCICE configuration file name */
+  addStringOption("PRECICE_CONFIG_FILENAME", preciceConfigFileName, string("precice.xml"));
+
+  /* DESCRIPTION:  preCICE wet surface marker name (specified in the mesh file) */
+  addStringOption("PRECICE_WETSURFACE_MARKER_NAME", preciceWetSurfaceMarkerName, string("wetSurface"));
+
+  /* DESCRIPTION: Number of time steps to apply the load ramping precedure of the preCICE adapter. */
+  addUnsignedLongOption("PRECICE_LOADRAMPING_DURATION", precice_loadRampingDuration, 1);
+
+  /* DESCRIPTION: Number of wet surfaces in the preCICE FSI simulation. */
+  addUnsignedLongOption("PRECICE_NUMBER_OF_WETSURFACES", precice_numberWetSurfaces, 1);
+
+
+
+
   /* END_CONFIG_OPTIONS */
 
 }
@@ -3898,11 +3938,13 @@ void CConfig::SetPostprocessing(SU2_COMPONENT val_software, unsigned short val_i
 
       if((Kind_GridMovement != ROTATING_FRAME) &&
          (Kind_GridMovement != STEADY_TRANSLATION) &&
-         (Kind_GridMovement != NONE)){
+         (Kind_GridMovement != NONE) &&
+         (Kind_GridMovement != PRECICE_MOVEMENT))
+         {
         SU2_MPI::Error("Unsupported kind of grid movement for steady state problems.", CURRENT_FUNCTION);
       }
       for (iMarker = 0; iMarker < nMarker_Moving; iMarker++){
-        if (Kind_SurfaceMovement[iMarker] != MOVING_WALL){
+        if (Kind_SurfaceMovement[iMarker] != MDO_SURFACE){
           SU2_MPI::Error("Unsupported kind of surface movement for steady state problems.", CURRENT_FUNCTION);
         }
       }
@@ -6043,6 +6085,7 @@ void CConfig::SetOutput(SU2_COMPONENT val_software, unsigned short val_izone) {
         case RIGID_MOTION:    cout << "rigid mesh motion." << endl; break;
         case ROTATING_FRAME:  cout << "rotating reference frame." << endl; break;
         case EXTERNAL:        cout << "externally prescribed motion." << endl; break;
+        case PRECICE_MOVEMENT:cout << "MDA prescribed motion." << endl; break;
       }
     }
 

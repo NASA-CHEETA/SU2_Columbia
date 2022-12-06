@@ -1,8 +1,8 @@
 /*!
  * \file option_structure.hpp
  * \brief Defines classes for referencing options for easy input in CConfig
- * \author J. Hicken, B. Tracey
- * \version 7.4.0 "Blackbird"
+ * \author J. Hicken, B. Tracey, P. Ranjan
+ * \version 2.0.0 "Columbia"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -727,6 +727,7 @@ enum ENUM_GRIDMOVEMENT {
   ROTATING_FRAME = 8,       /*!< \brief Simulation in a rotating frame. */
   STEADY_TRANSLATION = 11,  /*!< \brief Simulation in a steadily translating frame. */
   GUST = 12,                /*!< \brief Simulation on a static mesh with a gust. */
+  PRECICE_MOVEMENT = 15 /*!< \brief Simulation with dynamically deforming meshes for coupled simulation with preCICE. */
 };
 static const MapType<std::string, ENUM_GRIDMOVEMENT> GridMovement_Map = {
   MakePair("NONE", NO_MOVEMENT)
@@ -734,6 +735,7 @@ static const MapType<std::string, ENUM_GRIDMOVEMENT> GridMovement_Map = {
   MakePair("ROTATING_FRAME", ROTATING_FRAME)
   MakePair("STEADY_TRANSLATION", STEADY_TRANSLATION)
   MakePair("GUST", GUST)
+  MakePair("PRECICE_MOVEMENT", PRECICE_MOVEMENT)
 };
 
 enum ENUM_SURFACEMOVEMENT {
@@ -743,6 +745,7 @@ enum ENUM_SURFACEMOVEMENT {
   AEROELASTIC_RIGID_MOTION = 4,  /*!< \brief Simulation with rotation and aeroelastic motion. */
   EXTERNAL = 6,                  /*!< \brief Simulation with external motion. */
   EXTERNAL_ROTATION = 7,         /*!< \brief Simulation with external rotation motion. */
+  MDO_SURFACE = 8 ,             /*!< \breif MDO with external FEA solver .*/
 };
 static const MapType<std::string, ENUM_SURFACEMOVEMENT> SurfaceMovement_Map = {
   MakePair("DEFORMING", DEFORMING)
@@ -751,6 +754,7 @@ static const MapType<std::string, ENUM_SURFACEMOVEMENT> SurfaceMovement_Map = {
   MakePair("AEROELASTIC", AEROELASTIC)
   MakePair("EXTERNAL", EXTERNAL)
   MakePair("EXTERNAL_ROTATION", EXTERNAL_ROTATION)
+  MakePair("MDO_SURFACE", MDO_SURFACE)
 };
 
 /*!
