@@ -189,6 +189,10 @@ su2_cfd_src += files(['iteration/CIteration.cpp',
 
 su2_cfd_src += files(['limiters/CLimiterDetails.cpp'])
 
+su2_cfd_src += files(['drivers/CStaticMDODriver.cpp'])
+su2_cfd_src += files(['adapter/precice.cpp'])
+
+
 if get_option('enable-normal')
   su2_cfd_lib = static_library('SU2core',
                                su2_cfd_src,

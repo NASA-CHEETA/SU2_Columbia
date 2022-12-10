@@ -9624,6 +9624,18 @@ public:
   unsigned short GetRom_SaveFreq(void) const { return rom_save_freq; }
 
   /*!
+   * \brief Get boolean for static MDA.
+   * \return True for static MDA
+   */
+  bool GetSMDO_Mode(void) const {return Steady_MDO;}
+
+  /*!
+   * \brief Get boolean for dynamic MDA.
+   * \return True for dynamic MDA
+   */
+  bool GetUMDO_Mode(void) const {return Unsteady_MDO;}
+
+  /*!
    * \brief Check if the gradient smoothing is active
    * \return true means that smoothing is applied to the sensitivities
    */

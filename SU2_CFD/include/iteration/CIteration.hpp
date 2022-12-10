@@ -2,8 +2,8 @@
  * \file CIteration.hpp
  * \brief Headers of the iteration classes used by SU2_CFD.
  *        Each CIteration class represents an available physics package.
- * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \author F. Palacios, T. Economon, P. Ranjan
+ * \version 2.0.0 "Columbia"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -168,6 +168,11 @@ class CIteration {
                      CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
                      CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
                      unsigned short val_iInst){}
+
+  virtual void MDOSolve(COutput* output, CIntegration**** integration, CGeometry**** geometry, CSolver***** solver,
+                     CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
+                     CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
+                     unsigned short val_iInst, int counter){}                      
 
   /*!
    * \brief A virtual member.

@@ -2,8 +2,8 @@
  * \file SU2_CFD.hpp
  * \brief Headers of the main subroutines of the code SU2_CFD.
  *        The subroutines and functions are in the <i>SU2_CFD.cpp</i> file.
- * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \author F. Palacios, T. Economon, P. Ranjan
+ * \version 2.0.0 "Columbia"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -32,6 +32,7 @@
 #include "CLI11.hpp"
 
 #include "drivers/CDriver.hpp"
+#include "drivers/CStaticMDODriver.hpp"
 #include "drivers/CSinglezoneDriver.hpp"
 #include "drivers/CMultizoneDriver.hpp"
 #include "drivers/CDiscAdjSinglezoneDriver.hpp"

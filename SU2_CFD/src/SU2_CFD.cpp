@@ -1,8 +1,8 @@
 /*!
  * \file SU2_CFD.cpp
  * \brief Main file of the SU2 Computational Fluid Dynamics code
- * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \author F. Palacios, T. Economon, P. Ranjan
+ * \version 2.0.0 "Columbia"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -104,50 +104,19 @@ int main(int argc, char *argv[]) {
   const bool disc_adj = config.GetDiscrete_Adjoint();
   const bool multizone = config.GetMultizone_Problem();
   const bool harmonic_balance = (config.GetTime_Marching() == TIME_MARCHING::HARMONIC_BALANCE);
+  bool Smdo = config.GetSMDO_Mode(); /* See if steady (static) MDA/O is required*/
+  bool Umdo = config.GetUMDO_Mode(); /* See if un-steady (dynamic) MDA/O is required*/
 
-  if (dry_run) {
-
-    /*--- Dry Run. ---*/
-    driver = new CDummyDriver(config_file_name, nZone, MPICommunicator);
-
+  if (Smdo)
+  {   /* Launch an instance of the static MDA/O driver */
+      driver = new CStaticMDODriver(config_file_name, nZone, MPICommunicator);
   }
-  else if ((!multizone && !harmonic_balance && !turbo) || (turbo && disc_adj)) {
-
-    /*--- Generic single zone problem: instantiate the single zone driver class. ---*/
-    if (nZone != 1)
-      SU2_MPI::Error("The required solver doesn't support multizone simulations", CURRENT_FUNCTION);
-
-    if (disc_adj) {
-      driver = new CDiscAdjSinglezoneDriver(config_file_name, nZone, MPICommunicator);
-    }
-    else {
-      driver = new CSinglezoneDriver(config_file_name, nZone, MPICommunicator);
-    }
-
+  
+  else
+  {
+    /* Launch an instance of the conventional CFD driver */
+    driver = new CSinglezoneDriver(config_file_name, nZone, MPICommunicator);
   }
-  else if (multizone && !turbo) {
-
-    /*--- Generic multizone problems. ---*/
-    if (disc_adj) {
-      driver = new CDiscAdjMultizoneDriver(config_file_name, nZone, MPICommunicator);
-    }
-    else {
-      driver = new CMultizoneDriver(config_file_name, nZone, MPICommunicator);
-    }
-
-  }
-  else if (harmonic_balance) {
-
-    /*--- Harmonic balance problem: instantiate the Harmonic Balance driver class. ---*/
-    driver = new CHBDriver(config_file_name, nZone, MPICommunicator);
-
-  }
-  else if (turbo) {
-
-    /*--- Turbomachinery problem. ---*/
-    driver = new CTurbomachineryDriver(config_file_name, nZone, MPICommunicator);
-
-  } /*--- These are all the possible cases ---*/
 
   /*--- Launch the main external loop of the solver. ---*/
 

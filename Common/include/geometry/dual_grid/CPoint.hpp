@@ -814,6 +814,10 @@ public:
       GridVel(iPoint,iDim) = gridvel[iDim];
   }
 
+  /* Sets the grid velocity gradients for the entire domain */
+
+  inline void SetGridVel_Grad(CVectorOfMatrix gridVel_grad) {GridVel_Grad = gridVel_grad;}
+
   /*!
    * \brief Get the grid velocity gradients for the entire domain.
    */

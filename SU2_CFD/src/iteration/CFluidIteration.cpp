@@ -1,8 +1,8 @@
 /*!
  * \file CFluidIteration.cpp
  * \brief Main subroutines used by SU2_CFD
- * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \author F. Palacios, T. Economon, P. Ranjan
+ * \version 2.0.0 "Columbia"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -256,11 +256,60 @@ bool CFluidIteration::Monitor(COutput* output, CIntegration**** integration, CGe
 
   /* --- Checking convergence of Fixed CL mode to target CL, and perform finite differencing if needed  --*/
 
-  if (config[val_iZone]->GetFixed_CL_Mode()) {
+  if (config[val_iZone]->GetFixed_CL_Mode()) 
+  {
     StopCalc = MonitorFixed_CL(output, geometry[val_iZone][INST_0][MESH_0], solver[val_iZone][INST_0][MESH_0],
                                config[val_iZone]);
   }
 
+  if (StopCalc)
+  {
+    if (rank == MASTER_NODE)
+    {
+      std::cout << "Exiting FIXED CL monitor @ CFluidIteration.cpp" << std::endl;
+    }
+  } 
+
+  return StopCalc;
+}
+
+bool CFluidIteration::MonitorMDO(COutput* output, CIntegration**** integration, CGeometry**** geometry,
+                              CSolver***** solver, CNumerics****** numerics, CConfig** config,
+                              CSurfaceMovement** surface_movement, CVolumetricMovement*** grid_movement,
+                              CFreeFormDefBox*** FFDBox, unsigned short val_iZone, unsigned short val_iInst, int counter) 
+{
+  bool StopCalc = false;
+
+  StopTime = SU2_MPI::Wtime();
+
+  UsedTime = StopTime - StartTime;
+
+  /*--- Get the time at which implicit aero-elastic simulations must begin---*/
+  //su2double target_Time = config[ZONE_0]->GetTargTimeIter();
+  su2double target_Time = 0;
+
+  
+  output->SetHistory_Output(geometry[val_iZone][INST_0][MESH_0], solver[val_iZone][INST_0][MESH_0], config[val_iZone],
+                              config[val_iZone]->GetTimeIter(), config[val_iZone]->GetOuterIter(),
+                              config[val_iZone]->GetInnerIter());
+  
+
+
+  /*--- Check of forward analysis converged --*/
+  StopCalc = output->GetConvergence();
+  /*---Check if CL driver needs to be called (Omit for now)---*/
+
+/*
+  if (config[val_iZone]->Get_CL_Driver_Mode())
+  {
+    if (config[val_iZone]->GetFixed_CL_Mode())
+    { 
+      //---Call CL driver only for the first implicit coupling step. (Saves cost and avoids LCO of CL Driver)---//
+      StopCalc = MonitorFixed_CL(output, geometry[val_iZone][INST_0][MESH_0], solver[val_iZone][INST_0][MESH_0],
+                               config[val_iZone]);
+    }                           
+  }                             
+ */
   return StopCalc;
 }
 
@@ -332,6 +381,62 @@ void CFluidIteration::Solve(COutput* output, CIntegration**** integration, CGeom
     else {
       integration[val_iZone][INST_0][FLOW_SOL]->SetConvergence(false);
     }
+  }
+}
+
+void CFluidIteration::MDOSolve(COutput* output, CIntegration**** integration, CGeometry**** geometry, CSolver***** solver,
+                            CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
+                            CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
+                            unsigned short val_iInst, int counter) 
+{
+
+
+  /*--- Boolean to determine if we are running a static or dynamic case ---*/
+  bool steady = !config[val_iZone]->GetTime_Domain();
+
+  unsigned long Inner_Iter, nInner_Iter = config[val_iZone]->GetnInner_Iter();
+  bool StopCalc = false;
+  
+  /*--- Get time at which implicit aero-elastic simulations must be done ---*/
+
+  //su2double target_time = config[ZONE_0]->GetTargTimeIter();
+  su2double target_time = 0;
+
+  StartTime = SU2_MPI::Wtime();
+
+  /*--- Preprocess the solver ---*/
+  Preprocess(output, integration, geometry, solver, numerics, config, surface_movement, grid_movement, FFDBox,
+             val_iZone, INST_0);
+
+  /*--------------------------------------------------------------------------------------------------------------*/
+  /*-----------------------------------------------MAIN IMPLICIT LOOP---------------------------------------------*/
+  /*--------------------------------------------------------------------------------------------------------------*/
+  for (Inner_Iter = 0; Inner_Iter < nInner_Iter; Inner_Iter++) 
+  {
+    config[val_iZone]->SetInnerIter(Inner_Iter);
+
+    /*---If at the target MDO time for implicit calculations, increase the # of inner Iterations to a high value-----*/
+    //if (TimeIter == target_time)
+   // {
+   //   nInner_Iter = 10000;
+   // }
+
+    /*--- Run a single iteration of the solver ---*/
+    Iterate(output, integration, geometry, solver, numerics, config, surface_movement, grid_movement, FFDBox, val_iZone,
+            INST_0);
+
+    /*--- Monitor the pseudo-time ---*/
+    StopCalc = MonitorMDO(output, integration, geometry, solver, numerics, config, surface_movement, grid_movement, FFDBox,
+                       val_iZone, INST_0, counter);    
+
+    if (StopCalc)
+    {
+      if (rank == MASTER_NODE)
+      {
+        std::cout << "I am exiting Monitor now " << std::endl;
+      }
+    }                   
+    if (StopCalc) break;
   }
 }
 

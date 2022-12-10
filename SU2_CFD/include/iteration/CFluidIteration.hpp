@@ -88,6 +88,17 @@ class CFluidIteration : public CIteration {
              CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
              unsigned short val_iInst) override;
 
+  /* --- Same as Solve() except this adapts to a higher inner Iteration for implicit coupling ---*/ 
+  void MDOSolve(COutput* output, CIntegration**** integration, CGeometry**** geometry, CSolver***** solver,
+                            CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
+                            CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
+                            unsigned short val_iInst, int counter);
+
+  bool MonitorMDO(COutput* output, CIntegration**** integration, CGeometry**** geometry, CSolver***** solver,
+              CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
+              CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
+              unsigned short val_iInst, int counter);                                     
+
   /*!
    * \brief Updates the containers for the fluid system.
    * \param[in] ??? - Description here.
