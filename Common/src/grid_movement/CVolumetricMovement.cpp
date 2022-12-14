@@ -1601,7 +1601,7 @@ void CVolumetricMovement::SetBoundaryDisplacements(CGeometry *geometry, CConfig 
 {
   if (rank == MASTER_NODE)
   {
-    std::cout<<" Setting boundary Displacements " << std::endl;
+    std::cout<<"Setting boundary Displacements " << std::endl;
   }
   unsigned short iDim, nDim = geometry->GetnDim(), iMarker, axis = 0;
   unsigned long iPoint, total_index, iVertex;
