@@ -30,7 +30,7 @@
 #include "../../include/output/COutput.hpp"
 #include "../../include/iteration/CIteration.hpp"
 
-#include "../../include/precice.hpp"
+#include "../../include/adapter/precice.hpp"
 
 
 

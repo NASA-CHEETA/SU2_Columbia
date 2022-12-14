@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 
-#include "../include/precice.hpp"
+#include "../include/adapter/precice.hpp"
 
 
 /*---Main class description -----*/

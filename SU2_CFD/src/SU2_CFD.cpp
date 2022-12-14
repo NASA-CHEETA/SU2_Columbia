@@ -119,14 +119,6 @@ int main(int argc, char *argv[]) {
 
   //    driver = new CSinglezoneDriver(config_file_name, nZone, MPICommunicator);
     
-
-  
-
-  if (Umdo )
-  {
-    driver = new CMDODriver(config_file_name, nZone, MPICommunicator);
-  }
-
   if (Smdo)
   {
       driver = new CStaticMDODriver(config_file_name, nZone, MPICommunicator);

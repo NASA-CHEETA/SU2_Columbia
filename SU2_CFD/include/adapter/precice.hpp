@@ -1,17 +1,26 @@
-#include "precice/SolverInterface.hpp"
-#include "SU2_CFD.hpp"
-#include <string>
+/*!
+* \file precice.hpp
+* \brief Header of adapter class for coupling SU2 with preCICE for FSI.
+* \author Alexander Rusch
+*/
+
+
+#include <string.h>
 #include <stdlib.h>
+
+#include "../SU2_CFD.hpp"
+
+#include "precice/SolverInterface.hpp"
 
 #include "../../Common/include/containers/C2DContainer.hpp"
 #include "../../Common/include/containers/container_decorators.hpp"
+
 using namespace precice;
 using namespace std;
 
-
-class CSMDO {
+class Precice {
 private:
-      /* Local process and total process count */
+  /* Local process and total process count */
   int solverProcessIndex, solverProcessSize;
 
   /* Coupling interface object */
@@ -19,7 +28,7 @@ private:
 
   /* Fluid mesh and boundary information */
   CGeometry**** geometry_container;
-  
+
   /* Fluid solution information */
   CSolver***** solver_container;
 
@@ -28,6 +37,7 @@ private:
 
   /* Fluid mesh elasticity information */
   CVolumetricMovement*** grid_movement;
+
 
 
   int nDim;    // Dimension of the problem
@@ -56,7 +66,7 @@ private:
   bool StopCalc_savedState;
   double **solution_Saved, **solution_time_n_Saved, **solution_time_n1_Saved;
 
-  CVectorOfMatrix GridVel_Grad; 
+  CVectorOfMatrix GridVel_Grad;
 
   unsigned short  FSI_ID_Global;
   unsigned short  FSI_ID_Local;
@@ -66,13 +76,13 @@ private:
 
   public:
 
-  /*--------------- Override default constructor for class CSMDO ------*/
-  
-  CSMDO(const std::string& preciceConfigurationFileName, int solverProcessIndex, int solverProcessSize, CConfig** config_container, CGeometry**** geometry_container, CSolver***** solver_container, CVolumetricMovement*** grid_movement);
-  
-  /*--------- Override default destructor for class CSMDO -------*/
-  ~CSMDO();
-  
+  /*--------------- Override default constructor for class Precice ------*/
+  //Precice(const std::string& preciceConfigurationFileName, int solverProcessIndex, int solverProcessSize, CConfig** config_container, CGeometry**** geometry_container, CSolver***** solver_container, CVolumetricMovement*** grid_movement, );
+  Precice(const std::string& preciceConfigurationFileName, int solverProcessIndex, int solverProcessSize, CConfig** config_container, CGeometry**** geometry_container, CSolver***** solver_container, CVolumetricMovement*** grid_movement);
+
+  /*--------- Override default destructor for class Precice -------*/
+  ~Precice();
+
 
 
   /* Method to see if this adapter file is being called from SU2 */
@@ -94,7 +104,7 @@ private:
   *
   * \return Maximum length of first timestep to be computed by the solver.
   */
-  double initializeMDO();
+  double initialize();
 
 
 /*!
@@ -122,7 +132,7 @@ private:
   * \param[in] computedTimestepLength - Length of timestep computed by solver.
   * \return Maximum length of next timestep to be computed by solver.
   */
-  double advance( double computedTimestepLength );
+  double advance( double computedTimestepLength);
 
   /*!
   * \brief Checks wether preCICE coupling is still ongoing or not.
@@ -185,6 +195,12 @@ private:
   void finalize();
 
   void reloadOldState( bool *StopCalc, double *dt );
+
+  void saveOldStaticState( bool *StopCalc, double *dt);
+
+  void reloadOldStaticState(bool *StopCalc, double *dt);
+
+
 
 
 };
