@@ -3,14 +3,14 @@
  * \brief Headers of the iteration classes used by SU2_CFD.
  *        Each CIteration class represents an available physics package.
  * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -37,6 +37,7 @@
  */
 class CFluidIteration : public CIteration {
  public:
+
   /*!
    * \brief Constructor of the class.
    * \param[in] config - Definition of the particular problem.
@@ -94,10 +95,8 @@ class CFluidIteration : public CIteration {
                             CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
                             unsigned short val_iInst, int counter);
 
-  bool MonitorMDO(COutput* output, CIntegration**** integration, CGeometry**** geometry, CSolver***** solver,
-              CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
-              CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
-              unsigned short val_iInst, int counter);                                     
+
+
 
   /*!
    * \brief Updates the containers for the fluid system.
@@ -116,6 +115,14 @@ class CFluidIteration : public CIteration {
                CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
                CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
                unsigned short val_iInst) override;
+  /*!
+   * \brief Monitors the convergence and other metrics for the AERO-ELASTIC fluid system
+   * \param[in] ??? - Description here.
+   */
+  bool MonitorMDO(COutput* output, CIntegration**** integration, CGeometry**** geometry, CSolver***** solver,
+               CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
+               CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
+               unsigned short val_iInst, int counter);
 
   /*!
    * \brief Postprocesses the fluid system before heading to another physics system or the next iteration.
@@ -127,6 +134,16 @@ class CFluidIteration : public CIteration {
                    CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
                    CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
                    unsigned short val_iInst) override;
+
+  /*!
+   * \brief Compute the traction at all FSI interface vertices
+   * \param[in] solver - Container vector with all the solutions.
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+ // void Surface_Tractions(CGeometry**** geometry, CConfig** config);                 
+
+
 
  private:
 
@@ -167,5 +184,7 @@ class CFluidIteration : public CIteration {
    * \param[in,out] config - Definition of the particular problem.
    */
   void SetDualTime_Aeroelastic(CConfig* config) const;
+
+
 
 };

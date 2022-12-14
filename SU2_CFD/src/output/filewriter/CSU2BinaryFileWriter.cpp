@@ -2,14 +2,14 @@
  * \file CSU2BinaryFileWriter.cpp
  * \brief Filewriter class SU2 native binary format.
  * \author T. Albring
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -29,15 +29,15 @@
 
 const string CSU2BinaryFileWriter::fileExt = ".dat";
 
-CSU2BinaryFileWriter::CSU2BinaryFileWriter(CParallelDataSorter *valDataSorter)  :
-  CFileWriter(valDataSorter, fileExt){}
+CSU2BinaryFileWriter::CSU2BinaryFileWriter(string valFileName, CParallelDataSorter *valDataSorter)  :
+  CFileWriter(std::move(valFileName), valDataSorter, fileExt){}
 
 
 CSU2BinaryFileWriter::~CSU2BinaryFileWriter(){
 
 }
 
-void CSU2BinaryFileWriter::Write_Data(string val_filename){
+void CSU2BinaryFileWriter::Write_Data(){
 
   /*--- Local variables ---*/
 
@@ -58,9 +58,13 @@ void CSU2BinaryFileWriter::Write_Data(string val_filename){
   int var_buf_size = 5;
   int var_buf[5] = {535532, nVar, (int)nPoint_Global, 0, 0};
 
+  /*--- Begin I/O profiling here ----*/
+
+  
+
   /*--- Open the file using MPI I/O ---*/
 
-  OpenMPIFile(val_filename);
+  OpenMPIFile();
 
   /*--- First, write the number of variables and points (i.e., cols and rows),
    which we will need in order to read the file later. Also, write the

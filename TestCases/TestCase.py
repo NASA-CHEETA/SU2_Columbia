@@ -3,14 +3,14 @@
 ## \file TestCase.py
 #  \brief Python class for automated regression testing of SU2 examples
 #  \author A. Aranake, A. Campos, T. Economon, T. Lukaczyk, S. Padron
-#  \version 7.4.0 "Blackbird"
+#  \version 7.2.0 "Blackbird"
 #
 # SU2 Project Website: https://su2code.github.io
 # 
 # The SU2 Project is maintained by the SU2 Foundation 
 # (http://su2foundation.org)
 #
-# Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+# Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
 #
 # SU2 is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -27,7 +27,6 @@
 from __future__ import print_function, division, absolute_import
 import time, os, subprocess, datetime, sys
 import difflib
-import platform
 
 
 def print_vals(vals, name="Values"):
@@ -64,9 +63,6 @@ class TestCase:
         self.test_iter = 1
         self.ntest_vals = 4
         self.test_vals = []  
-        self.test_vals_aarch64 = []
-        self.cpu_arch = platform.processor()
-        self.enabled_on_cpu_arch = ["x86_64", "aarch64"]
 
         # These can be optionally varied 
         self.su2_exec    = "SU2_CFD" 
@@ -75,19 +71,15 @@ class TestCase:
 
         # Options for file-comparison tests
         self.reference_file = "of_grad.dat.ref"
-        self.reference_file_aarch64 = ""
         self.test_file      = "of_grad.dat"
 
     def run_test(self):
-
-        if not self.is_enabled():
-            return True
 
         print('==================== Start Test: %s ===================='%self.tag)
         passed       = True
         exceed_tol   = False
         timed_out    = False
-        iter_missing = True
+        iter_missing = False
         start_solver = True
 
         # if root, add flag to mpirun
@@ -116,8 +108,6 @@ class TestCase:
             command = "%s %s > %s 2>&1" % (self.su2_exec, 
                                            self.cfg_file, 
                                            logfilename)
-
-        self.adjust_test_data()
 
         # Run SU2
         workdir = os.getcwd()
@@ -218,8 +208,6 @@ class TestCase:
         if iter_missing:
             print('ERROR: The iteration number %d could not be found.'%self.test_iter)
 
-        print('CPU architecture=%s' % self.cpu_arch)
-
         if len(self.test_vals) != 0:
             print('test_iter=%d' % self.test_iter)
 
@@ -237,18 +225,12 @@ class TestCase:
         return passed
 
     def run_filediff(self):
-
-        if not self.is_enabled():
-            return True
-
         print('==================== Start Test: %s ===================='%self.tag)
         passed       = True
         timed_out    = False
 
         # Adjust the number of iterations in the config file
         self.adjust_iter()
-
-        self.adjust_test_data()
 
         # if root, add flag to mpirun
         if os.geteuid()==0:
@@ -323,7 +305,6 @@ class TestCase:
         else:
             passed = False
 
-        print('CPU architecture=%s'%self.cpu_arch)
         print('test duration: %.2f min'%(running_time/60.0))
         print('==================== End Test: %s ====================\n'%self.tag)
 
@@ -332,9 +313,6 @@ class TestCase:
         return passed
 
     def run_opt(self):
-
-        if not self.is_enabled():
-            return True
 
         print('==================== Start Test: %s ===================='%self.tag)
         passed       = True
@@ -345,8 +323,6 @@ class TestCase:
 
         # Adjust the number of iterations in the config file   
         self.adjust_opt_iter()
-
-        self.adjust_test_data()
 
         # Assemble the shell command to run SU2
         logfilename = '%s.log' % os.path.splitext(self.cfg_file)[0]
@@ -458,9 +434,6 @@ class TestCase:
 
     def run_geo(self):
 
-        if not self.is_enabled():
-            return True
-
         print('==================== Start Test: %s ===================='%self.tag)
         passed       = True
         exceed_tol   = False
@@ -472,8 +445,6 @@ class TestCase:
         found_area   = False
         found_twist  = False
         found_chord  = False
-
-        self.adjust_test_data()
 
         # if root, add flag to mpirun
         if os.geteuid()==0:
@@ -591,10 +562,7 @@ class TestCase:
         return passed
 
     def run_def(self):
-
-        if not self.is_enabled():
-            return True
-
+    
         print('==================== Start Test: %s ===================='%self.tag)
         passed       = True
         exceed_tol   = False
@@ -602,8 +570,6 @@ class TestCase:
         iter_missing = True
         start_solver = True
     
-        self.adjust_test_data()
-
         # if root, add flag to mpirun
         if os.geteuid()==0:
             if self.su2_exec.startswith('mpirun'):
@@ -729,7 +695,7 @@ class TestCase:
         # Rewrite the file with a .autotest extension
         self.cfg_file = "%s.autotest"%self.cfg_file
         file_out = open(self.cfg_file,'w')
-        file_out.write('% This file automatically generated by the regression script\n')
+        file_out.write('%% This file automatically generated by the regression script\n')
         file_out.write('%% Number of iterations changed to %d\n'%(self.test_iter+1))
         if (self.multizone or self.new_output) and self.unsteady:
             adjust_string = "TIME_ITER"
@@ -759,7 +725,7 @@ class TestCase:
         # Rewrite the file with a .autotest extension
         self.cfg_file = "%s.autotest"%self.cfg_file
         file_out = open(self.cfg_file,'w')
-        file_out.write('% This file automatically generated by the regression script\n')
+        file_out.write('%% This file automatically generated by the regression script\n')
         file_out.write('%% Number of optimizer iterations changed to %d\n'%(self.test_iter))
         for line in lines:
             if not line.startswith("OPT_ITERATIONS"):
@@ -783,7 +749,7 @@ class TestCase:
         # Rewrite the file with a .autotest extension
         self.cfg_file = "%s.autotest"%self.cfg_file
         file_out = open(self.cfg_file,'w')
-        file_out.write('% This file automatically generated by the regression script\n')
+        file_out.write('%% This file automatically generated by the regression script\n')
         file_out.write('%% Number of optimizer iterations changed to %d\n'%(self.test_iter))
         for line in lines:
             if not line.startswith("RESTART_SOL"):
@@ -794,20 +760,3 @@ class TestCase:
         os.chdir(workdir)
 
         return
-
-    def is_enabled(self):
-        is_enabled = self.cpu_arch in self.enabled_on_cpu_arch
-
-        if not is_enabled:
-            print('Ignoring test "%s" because it is not enabled for the current CPU architecture: %s' % (self.tag, self.cpu_arch))
-
-        return is_enabled
-
-    def adjust_test_data(self):
-
-        if self.cpu_arch == 'aarch64':
-            if len(self.test_vals_aarch64) != 0:
-                self.test_vals = self.test_vals_aarch64
-        
-            if len(self.reference_file_aarch64) != 0:
-                self.reference_file = self.reference_file_aarch64

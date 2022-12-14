@@ -2,14 +2,14 @@
  * \file CFileWriter.hpp
  * \brief Headers fo the file writer class.
  * \author T. Albring
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -74,6 +74,11 @@ protected:
   }
 
   /*!
+   * \brief Filename
+   */
+  string fileName;
+
+  /*!
    * \brief The parallel data sorter
    */
   CParallelDataSorter* dataSorter;
@@ -99,16 +104,18 @@ protected:
 public:
   /*!
    * \brief Construct a file writer using field names, the data sorter and the file extension.
+   * \param[in] valFileName - The name of the file
    * \param[in] valDataSorter - The parallel sorted data to write
    * \param[in] valFileExt - The file extension.
    */
-  CFileWriter(CParallelDataSorter* valDataSorter, string valFileExt);
+  CFileWriter(string valFileName, CParallelDataSorter* valDataSorter, string valFileExt);
 
   /*!
    * \brief Construct a file writer using field names, file extension.
+   * \param[in] valFileName - The name of the file
    * \param[in] valFileExt - The file extension to be attached to the filename
    */
-  CFileWriter(string valFileExt);
+  CFileWriter(string valFileName, string valFileExt);
 
   /*!
    * \brief Destructor
@@ -117,9 +124,8 @@ public:
 
   /*!
    * \brief Write sorted data to file
-   * \param[in] val_filename - The name of the file
    */
-  virtual void Write_Data(string val_filename){}
+  virtual void Write_Data(){}
 
   /*!
    * \brief Get the bandwith used for the last writing
@@ -170,10 +176,9 @@ protected:
 
   /*!
    * \brief Open a file to write using MPI I/O. Already existing file is deleted.
-   * \param[in] val_filename - The name of the file
    * \return Boolean indicating whether the opening was successful.
    */
-  bool OpenMPIFile(string val_filename);
+  bool OpenMPIFile();
 
   /*!
    * \brief Close a file using MPI I/O.

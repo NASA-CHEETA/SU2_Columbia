@@ -2,14 +2,14 @@
  * \file CMeshSolver.cpp
  * \brief Main subroutines to solve moving meshes using a pseudo-linear elastic approach.
  * \author Ruben Sanchez
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -33,7 +33,7 @@
 using namespace GeometryToolbox;
 
 
-CMeshSolver::CMeshSolver(CGeometry *geometry, CConfig *config) : CFEASolver(LINEAR_SOLVER_MODE::MESH_DEFORM) {
+CMeshSolver::CMeshSolver(CGeometry *geometry, CConfig *config) : CFEASolver(true) {
 
   /*--- Initialize some booleans that determine the kind of problem at hand. ---*/
 
@@ -173,11 +173,12 @@ void CMeshSolver::SetMinMaxVolume(CGeometry *geometry, CConfig *config, bool upd
   const bool wasActive = AD::BeginPassive();
 
   /*--- Initialize shared reduction variables. ---*/
-  BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS {
+  SU2_OMP_BARRIER
+  SU2_OMP_MASTER {
     MaxVolume = -1E22; MinVolume = 1E22;
     ElemCounter = 0;
   }
-  END_SU2_OMP_SAFE_GLOBAL_ACCESS
+  END_SU2_OMP_MASTER
 
   /*--- Local min/max, final reduction outside loop. ---*/
   su2double maxVol = -1E22, minVol = 1E22;
@@ -237,15 +238,17 @@ void CMeshSolver::SetMinMaxVolume(CGeometry *geometry, CConfig *config, bool upd
     ElemCounter += elCount;
   }
   END_SU2_OMP_CRITICAL
+  SU2_OMP_BARRIER
 
-  BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
+  SU2_OMP_MASTER
   {
     elCount = ElemCounter; maxVol = MaxVolume; minVol = MinVolume;
     SU2_MPI::Allreduce(&elCount, &ElemCounter, 1, MPI_UNSIGNED_LONG, MPI_SUM, SU2_MPI::GetComm());
     SU2_MPI::Allreduce(&maxVol, &MaxVolume, 1, MPI_DOUBLE, MPI_MAX, SU2_MPI::GetComm());
     SU2_MPI::Allreduce(&minVol, &MinVolume, 1, MPI_DOUBLE, MPI_MIN, SU2_MPI::GetComm());
   }
-  END_SU2_OMP_SAFE_GLOBAL_ACCESS
+  END_SU2_OMP_MASTER
+  SU2_OMP_BARRIER
 
   /*--- Volume from 0 to 1 ---*/
 
@@ -263,7 +266,7 @@ void CMeshSolver::SetMinMaxVolume(CGeometry *geometry, CConfig *config, bool upd
   END_SU2_OMP_FOR
 
   /*--- Store the maximum and minimum volume. ---*/
-  BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS {
+  SU2_OMP_MASTER {
   if (updated) {
     MaxVolume_Curr = MaxVolume;
     MinVolume_Curr = MinVolume;
@@ -277,7 +280,8 @@ void CMeshSolver::SetMinMaxVolume(CGeometry *geometry, CConfig *config, bool upd
     cout <<"There are " << ElemCounter << " elements with negative volume.\n" << endl;
 
   }
-  END_SU2_OMP_SAFE_GLOBAL_ACCESS
+  END_SU2_OMP_MASTER
+  SU2_OMP_BARRIER
 
   AD::EndPassive(wasActive);
 
@@ -371,15 +375,17 @@ void CMeshSolver::SetWallDistance(CGeometry *geometry, CConfig *config) {
       MinDistance = min(MinDistance, MinDistance_Local);
     }
     END_SU2_OMP_CRITICAL
+    SU2_OMP_BARRIER
 
-    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
+    SU2_OMP_MASTER
     {
       MaxDistance_Local = MaxDistance;
       MinDistance_Local = MinDistance;
       SU2_MPI::Allreduce(&MaxDistance_Local, &MaxDistance, 1, MPI_DOUBLE, MPI_MAX, SU2_MPI::GetComm());
       SU2_MPI::Allreduce(&MinDistance_Local, &MinDistance, 1, MPI_DOUBLE, MPI_MIN, SU2_MPI::GetComm());
     }
-    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+    END_SU2_OMP_MASTER
+    SU2_OMP_BARRIER
   }
 
   /*--- Normalize distance from 0 to 1 ---*/
@@ -437,27 +443,33 @@ void CMeshSolver::SetMesh_Stiffness(CGeometry **geometry, CNumerics **numerics, 
 
     /*--- Stiffness inverse of the volume of the element. ---*/
     case INVERSE_VOLUME:
-      for (unsigned long iElem = 0; iElem < nElement; iElem++) {
+      for (unsigned long iElem = 0; iElem < nElement; iElem++) 
+      {
         su2double E = 1.0 / element[iElem].GetRef_Volume();
         myNumerics->SetMeshElasticProperties(iElem, min(E,maxE));
       }
     break;
 
     /*--- Stiffness inverse of the distance of the element to the closest wall. ---*/
-    case SOLID_WALL_DISTANCE: {
+    case SOLID_WALL_DISTANCE: 
+    {
       const su2double offset = config->GetDeform_StiffLayerSize();
       if (fabs(offset) > 0.0) {
         /*--- With prescribed layer of maximum stiffness (reaches max and holds). ---*/
         su2double d0 = offset / MaxDistance;
         su2double dmin = 1.0 / maxE;
         su2double scale = 1.0 / (1.0 - d0);
-        for (unsigned long iElem = 0; iElem < nElement; iElem++) {
+        for (unsigned long iElem = 0; iElem < nElement; iElem++) 
+        {
           su2double E = 1.0 / max(dmin, (element[iElem].GetWallDistance() - d0)*scale);
           myNumerics->SetMeshElasticProperties(iElem, E);
         }
-      } else {
+      }
+       else 
+       {
         /*--- Without prescribed layer of maximum stiffness (may not reach max). ---*/
-        for (unsigned long iElem = 0; iElem < nElement; iElem++) {
+        for (unsigned long iElem = 0; iElem < nElement; iElem++) 
+        {
           su2double E = 1.0 / element[iElem].GetWallDistance();
           myNumerics->SetMeshElasticProperties(iElem, min(E,maxE));
         }
@@ -489,7 +501,10 @@ void CMeshSolver::DeformMesh(CGeometry **geometry, CNumerics **numerics, CConfig
   /*--- Compute the stiffness matrix, no point recording because we clear the residual. ---*/
 
   const bool wasActive = AD::BeginPassive();
-
+  if (rank == MASTER_NODE)
+  {
+    std::cout <<"Computing stiffness matrix for fluid mesh"<<std::endl;
+  }
   Compute_StiffMatrix(geometry[MESH_0], numerics, config);
 
   AD::EndPassive(wasActive);
@@ -518,20 +533,35 @@ void CMeshSolver::DeformMesh(CGeometry **geometry, CNumerics **numerics, CConfig
 
   /*--- Update the grid coordinates and cell volumes using the solution
      of the linear system (usol contains the x, y, z displacements). ---*/
-  UpdateGridCoord(geometry[MESH_0], config);
+  
+  if (rank == MASTER_NODE)
+  {
+    std::cout <<"Update grid coordinates"<<std::endl;
+  }
 
+  UpdateGridCoord(geometry[MESH_0], config);
+  
+  if (rank == MASTER_NODE)
+  {
+    std::cout <<"Update dual grid"<<std::endl;
+  }
   /*--- Update the dual grid. ---*/
   CGeometry::UpdateGeometry(geometry, config);
 
   /*--- Check for failed deformation (negative volumes). ---*/
   SetMinMaxVolume(geometry[MESH_0], config, true);
 
+  if (rank == MASTER_NODE)
+  {
+    std::cout <<"Computing grid veloicty"<<std::endl;
+  }
   /*--- The Grid Velocity is only computed if the problem is time domain ---*/
   if (time_domain && !config->GetFSI_Simulation())
     ComputeGridVelocity(geometry, config);
 
   }
   END_SU2_OMP_PARALLEL
+  
 
   if (time_domain && config->GetFSI_Simulation()) {
     ComputeGridVelocity_FromBoundary(geometry, numerics, config);
@@ -608,7 +638,7 @@ void CMeshSolver::ComputeGridVelocity_FromBoundary(CGeometry **geometry, CNumeri
     END_SU2_OMP_FOR
 
     for (auto iMGlevel = 1u; iMGlevel <= config->GetnMGLevels(); iMGlevel++)
-      geometry[iMGlevel]->SetRestricted_GridVelocity(geometry[iMGlevel-1]);
+      geometry[iMGlevel]->SetRestricted_GridVelocity(geometry[iMGlevel-1], config);
   }
   END_SU2_OMP_PARALLEL
 
@@ -647,7 +677,7 @@ void CMeshSolver::ComputeGridVelocity(CGeometry **geometry, const CConfig *confi
   END_SU2_OMP_FOR
 
   for (auto iMGlevel = 1u; iMGlevel <= config->GetnMGLevels(); iMGlevel++)
-    geometry[iMGlevel]->SetRestricted_GridVelocity(geometry[iMGlevel-1]);
+    geometry[iMGlevel]->SetRestricted_GridVelocity(geometry[iMGlevel-1], config);
 
 }
 
@@ -675,7 +705,8 @@ void CMeshSolver::SetBoundaryDisplacements(CGeometry *geometry, CConfig *config,
    * The derivatives are still correct since the motion does not depend on the solution,
    * but this means that (for now) we cannot get derivatives w.r.t. motion parameters. */
 
-  if (config->GetSurface_Movement(DEFORMING) && !config->GetDiscrete_Adjoint()) {
+  if (config->GetSurface_Movement(DEFORMING) && !config->GetDiscrete_Adjoint()) 
+  {
     if (velocity_transfer)
       SU2_MPI::Error("Forced motions are not compatible with FSI simulations.", CURRENT_FUNCTION);
 
@@ -691,24 +722,28 @@ void CMeshSolver::SetBoundaryDisplacements(CGeometry *geometry, CConfig *config,
   unsigned short iMarker;
 
   /*--- Impose zero displacements of all non-moving surfaces that are not MARKER_DEFORM_SYM_PLANE. ---*/
-  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) 
+  {
     if ((config->GetMarker_All_Deform_Mesh(iMarker) == NO) &&
         (config->GetMarker_All_Deform_Mesh_Sym_Plane(iMarker) == NO) &&
         (config->GetMarker_All_Moving(iMarker) == NO) &&
         (config->GetMarker_All_KindBC(iMarker) != INTERNAL_BOUNDARY) &&
-        (config->GetMarker_All_KindBC(iMarker) != SEND_RECEIVE)) {
+        (config->GetMarker_All_KindBC(iMarker) != SEND_RECEIVE)) 
+        {
 
-      BC_Clamped(geometry, config, iMarker);
-    }
+          BC_Clamped(geometry, config, iMarker);
+        }
   }
 
   /*--- Impose displacement boundary conditions and symmetry. ---*/
-  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) 
+  {
     if ((config->GetMarker_All_Deform_Mesh(iMarker) == YES) ||
-        (config->GetMarker_All_Moving(iMarker) == YES)) {
+        (config->GetMarker_All_Moving(iMarker) == YES)) 
+        {
 
-      BC_Deforming(geometry, config, iMarker, velocity_transfer);
-    }
+          BC_Deforming(geometry, config, iMarker, velocity_transfer);
+        }
     else if (config->GetMarker_All_Deform_Mesh_Sym_Plane(iMarker) == YES) {
 
       BC_Sym_Plane(geometry, config, iMarker);

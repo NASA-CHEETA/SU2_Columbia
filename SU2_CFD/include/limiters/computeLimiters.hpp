@@ -2,14 +2,14 @@
  * \file computeLimiters.hpp
  * \brief Compute limiters wrapper function.
  * \author P. Gomes
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -35,7 +35,7 @@
  *        of "CLimiterDetails". See corresponding hpp files for further details.
  */
 template<class FieldType, class GradientType>
-void computeLimiters(LIMITER LimiterKind,
+void computeLimiters(ENUM_LIMITER LimiterKind,
                      CSolver* solver,
                      MPI_QUANTITIES kindMpiComm,
                      PERIODIC_QUANTITIES kindPeriodicComm1,
@@ -62,7 +62,7 @@ if (geometry.GetnDim() == 2) {\
                                config, varBegin, varEnd, field, gradient, fieldMin, fieldMax, limiter);\
 }
   switch (LimiterKind) {
-    case LIMITER::NONE:
+    case NO_LIMITER:
     {
       SU2_OMP_FOR_STAT(512)
       for(size_t iPoint = 0; iPoint < geometry.GetnPoint(); ++iPoint)
@@ -71,29 +71,29 @@ if (geometry.GetnDim() == 2) {\
       END_SU2_OMP_FOR
       break;
     }
-    case LIMITER::BARTH_JESPERSEN:
+    case BARTH_JESPERSEN:
     {
-      INSTANTIATE(LIMITER::BARTH_JESPERSEN);
+      INSTANTIATE(BARTH_JESPERSEN);
       break;
     }
-    case LIMITER::VENKATAKRISHNAN:
+    case VENKATAKRISHNAN:
     {
-      INSTANTIATE(LIMITER::VENKATAKRISHNAN);
+      INSTANTIATE(VENKATAKRISHNAN);
       break;
     }
-    case LIMITER::VENKATAKRISHNAN_WANG:
+    case VENKATAKRISHNAN_WANG:
     {
-      INSTANTIATE(LIMITER::VENKATAKRISHNAN_WANG);
+      INSTANTIATE(VENKATAKRISHNAN_WANG);
       break;
     }
-    case LIMITER::WALL_DISTANCE:
+    case WALL_DISTANCE:
     {
-      INSTANTIATE(LIMITER::WALL_DISTANCE);
+      INSTANTIATE(WALL_DISTANCE);
       break;
     }
-    case LIMITER::SHARP_EDGES:
+    case SHARP_EDGES:
     {
-      INSTANTIATE(LIMITER::SHARP_EDGES);
+      INSTANTIATE(SHARP_EDGES);
       break;
     }
     default:

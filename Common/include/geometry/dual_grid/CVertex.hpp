@@ -3,14 +3,14 @@
  * \brief Headers of the main subroutines for doing the complete dual grid structure.
  *        The subroutines and functions are in the <i>CVertex.cpp</i> file.
  * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -155,9 +155,12 @@ public:
    * \brief Set the value of the coordinate variation due to a surface modification.
    * \param[in] val_varcoord - Variation of the coordinate.
    */
-  inline void SetVarCoord(const su2double *val_varcoord) {
+  inline void SetVarCoord(const su2double *val_varcoord) 
+  {
     for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    {
       VarCoord[iDim] = val_varcoord[iDim];
+    }
   }
 
   /*!

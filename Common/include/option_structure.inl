@@ -2,15 +2,15 @@
  * \file option_structure.inl
  * \brief Template derived classes from COption, defined here as we
  *        only include them where needed to reduce compilation time.
- * \author J. Hicken, B. Tracey, P. Ranjan
- * \version 2.0.0 "Columbia"
+ * \author J. Hicken, B. Tracey
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,7 +26,6 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "parallelization/mpi_structure.hpp"
 using namespace std;
 
 template <class Tenum, class TField>
@@ -47,7 +46,9 @@ public:
     name(std::move(option_field_name)) {
   }
 
-  string SetValue(const vector<string>& option_value) override {
+  ~COptionEnum() = default;
+
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     // Check if there is more than one string
     string out = optionCheckMultipleValues(option_value, "enum", name);
@@ -94,7 +95,9 @@ public:
     typeName(type_name) {
   }
 
-  string SetValue(const vector<string>& option_value) override {
+  ~COptionScalar() = default;
+
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
 
     string out = optionCheckMultipleValues(option_value, typeName, name);
@@ -103,7 +106,7 @@ public:
     istringstream is(option_value.front());
     if (is >> field) return "";
 
-    return badValue(typeName, name);
+    return badValue(option_value, typeName, name);
   }
 
   void SetDefault() final {
@@ -151,6 +154,14 @@ public:
   }
 };
 
+class COptionString final : public COptionScalar<string> {
+public:
+  template<class... Ts>
+  COptionString(Ts&&... args) :
+    COptionScalar<string>("string", args...) {
+  }
+};
+
 class COptionBool final : public COptionScalar<bool> {
 public:
   template<class... Ts>
@@ -158,7 +169,7 @@ public:
     COptionScalar<bool>("bool", args...) {
   }
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
 
     string result;
@@ -175,39 +186,7 @@ public:
       return "";
     }
 
-    return badValue("bool", name);
-  }
-};
-
-class COptionString final : public COptionBase {
-protected:
-  string& field; // Reference to the fieldname
-  const string def; // Default value
-  const string name; // identifier for the option
-
-public:
-  COptionString() = delete;
-
-  COptionString(const string& option_field_name,
-                string& option_field,
-                string default_value) :
-    field(option_field),
-    def(default_value),
-    name(option_field_name) {
-  }
-
-  string SetValue(const vector<string>& option_value) override {
-    COptionBase::SetValue(option_value);
-
-    string out = optionCheckMultipleValues(option_value, "string", name);
-    if (!out.empty()) return out;
-
-    field = option_value.front();
-    return "";
-  }
-
-  void SetDefault() override {
-    field = def;
+    return badValue(option_value, "bool", name);
   }
 };
 
@@ -227,15 +206,11 @@ public:
     field(option_field),
     mySize(list_size),
     name(option_field_name) {
-    field = nullptr;
   }
 
-  ~COptionEnumList() {
-    delete [] field;
-    field = nullptr;
-  }
+  ~COptionEnumList() = default;
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     if (option_value.size() == 1 && option_value[0].compare("NONE") == 0) {
       mySize = 0;
@@ -279,7 +254,9 @@ public:
     field(option_field) {
   }
 
-  string SetValue(const vector<string>& option_value) override {
+  ~COptionArray() override {};
+
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     // Check that the size is correct
     if (option_value.size() != (unsigned long)this->size) {
@@ -299,7 +276,7 @@ public:
     for (int i  = 0; i < this->size; i++) {
       istringstream is(option_value[i]);
       if (!(is >> field[i])) {
-        return badValue(" array", this->name);
+        return badValue(option_value, " array", this->name);
       }
     }
     return "";
@@ -326,16 +303,11 @@ public:
     name(option_field_name),
     mySize(list_size),
     typeName(type_name) {
-    field = nullptr;
   }
 
-  ~COptionScalarList() {
-    delete [] field;
-    // prevent double free
-    field = nullptr;
-  }
+  ~COptionScalarList() = default;
 
-  string SetValue(const vector<string>& option_value) final {
+  string SetValue(vector<string> option_value) final {
     COptionBase::SetValue(option_value);
     // The size is the length of option_value
     mySize = option_value.size();
@@ -351,7 +323,7 @@ public:
       istringstream is(option_value[i]);
       Scalar val;
       if (!(is >> val)) {
-        return badValue(typeName+" list", name);
+        return badValue(option_value, typeName+" list", name);
       }
       field[i] = std::move(val);
     }
@@ -387,14 +359,6 @@ public:
   }
 };
 
-class COptionULongList final : public COptionScalarList<unsigned long> {
-public:
-  template<class... Ts>
-  COptionULongList(Ts&&... args) :
-    COptionScalarList<unsigned long>("unsigned long", args...) {
-  }
-};
-
 class COptionStringList final : public COptionScalarList<string> {
 public:
   template<class... Ts>
@@ -413,7 +377,7 @@ public:
   COptionConvect(string option_field_name, unsigned short & space_field, unsigned short & centered_field, unsigned short & upwind_field)
     : name(option_field_name), space(space_field), centered(centered_field), upwind(upwind_field) { }
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
 
     string out = optionCheckMultipleValues(option_value, "unsigned short", this->name);
@@ -435,7 +399,7 @@ public:
     }
     // Make them defined in case something weird happens
     SetDefault();
-    return badValue("convect", this->name);
+    return badValue(option_value, "convect", this->name);
 
   }
 
@@ -457,7 +421,7 @@ public:
   }
 
   ~COptionFEMConvect() override {};
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
 
     string out = optionCheckMultipleValues(option_value, "unsigned short", this->name);
@@ -473,7 +437,7 @@ public:
 
     // Make them defined in case something weird happens
     this->fem = NO_FEM;
-    return badValue("convect", this->name);
+    return badValue(option_value, "convect", this->name);
 
   }
 
@@ -500,14 +464,14 @@ public:
   }
 
   ~COptionMathProblem() override {};
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     string out = optionCheckMultipleValues(option_value, "unsigned short", name);
     if (out.compare("") != 0) {
       return out;
     }
     else if (option_value[0] == "ADJOINT") {
-      return badValue("math problem (try CONTINUOUS_ADJOINT)", name);
+      return badValue(option_value, "math problem (try CONTINUOUS_ADJOINT)", name);
     }
     else if (option_value[0] == "DIRECT") {
       cont_adjoint = false;
@@ -527,13 +491,14 @@ public:
       restart = true;
       return "";
     }
-    return badValue("math problem", name);
+    return badValue(option_value, "math problem", name);
   }
 
   void SetDefault() override {
     cont_adjoint = cont_adjoint_def;
     disc_adjoint = disc_adjoint_def;
     restart = restart_def;
+
   }
 
 };
@@ -552,7 +517,7 @@ public:
 
   ~COptionDVParam() override {};
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     if ((option_value.size() == 1) && (option_value[0].compare("NONE") == 0)) {
       this->nDV = 0;
@@ -724,7 +689,7 @@ public:
 
   ~COptionDVValue() override {};
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     if ((option_value.size() == 1) && (option_value[0].compare("NONE") == 0)) {
       this->nDV_Value = nullptr;
@@ -819,42 +784,36 @@ public:
 
 class COptionFFDDef : public COptionBase {
   string name;
-  unsigned short& nFFD;
-  su2double**& CoordFFD;
-  string*& FFDTag;
+  unsigned short & nFFD;
+  su2double ** & CoordFFD;
+  string * & FFDTag;
 
 public:
-  COptionFFDDef(string option_field_name, unsigned short& nFFD_field, su2double**& coordFFD_field, string*& FFDTag_field)
-    : name(option_field_name),
-      nFFD(nFFD_field),
-      CoordFFD(coordFFD_field),
-      FFDTag(FFDTag_field) {
-    nFFD = 0;
-    CoordFFD = nullptr;
-    FFDTag = nullptr;
+  COptionFFDDef(string option_field_name, unsigned short & nFFD_field, su2double** & coordFFD_field, string* & FFDTag_field) : nFFD(nFFD_field), CoordFFD(coordFFD_field), FFDTag(FFDTag_field) {
+    this->name = option_field_name;
   }
 
-  ~COptionFFDDef() {
-    for (unsigned short i = 0; i < nFFD; ++i) {
-      delete[] CoordFFD[i];
-    }
-    delete[] CoordFFD;
-    CoordFFD = nullptr;
-    delete[] FFDTag;
-    FFDTag = nullptr;
-  };
+  ~COptionFFDDef() override {};
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     if ((option_value.size() == 1) && (option_value[0].compare("NONE") == 0)) {
+      this->nFFD = 0;
       return "";
     }
+
     // Cannot have ; at the beginning or the end
     if (option_value[0].compare(";") == 0) {
-      return name + ": may not have beginning semicolon";
+      string newstring;
+      newstring.append(this->name);
+      newstring.append(": may not have beginning semicolon");
+      return newstring;
     }
     if (option_value[option_value.size()-1].compare(";") == 0) {
-      return name + ": may not have ending semicolon";
+      string newstring;
+      newstring.append(this->name);
+      newstring.append(": may not have ending semicolon");
+      return newstring;
     }
 
 
@@ -911,42 +870,45 @@ public:
     return "";
   }
 
-  void SetDefault() override {}
+  void SetDefault() override {
+    this->nFFD = 0;
+    this->CoordFFD = nullptr;
+    this->FFDTag = nullptr;
+  }
+
 };
 
 class COptionFFDDegree : public COptionBase {
   string name;
-  unsigned short& nFFD;
-  unsigned short**& DegreeFFD;
+  unsigned short & nFFD;
+  unsigned short ** & DegreeFFD;
 
 public:
-  COptionFFDDegree(string option_field_name, unsigned short& nFFD_field, unsigned short**& degreeFFD_field)
-    : name(option_field_name),
-      nFFD(nFFD_field),
-      DegreeFFD(degreeFFD_field) {
-    nFFD = 0;
-    DegreeFFD = nullptr;
+  COptionFFDDegree(string option_field_name, unsigned short & nFFD_field, unsigned short** & degreeFFD_field) : nFFD(nFFD_field), DegreeFFD(degreeFFD_field) {
+    this->name = option_field_name;
   }
 
-  ~COptionFFDDegree() {
-    for (unsigned short i = 0; i < nFFD; ++i) {
-      delete[] DegreeFFD[i];
-    }
-    delete[] DegreeFFD;
-    DegreeFFD = nullptr;
-  };
+  ~COptionFFDDegree() override {};
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     if ((option_value.size() == 1) && (option_value[0].compare("NONE") == 0)) {
+      this->nFFD = 0;
       return "";
     }
+
     // Cannot have ; at the beginning or the end
     if (option_value[0].compare(";") == 0) {
-      return name + ": may not have beginning semicolon";
+      string newstring;
+      newstring.append(this->name);
+      newstring.append(": may not have beginning semicolon");
+      return newstring;
     }
     if (option_value[option_value.size()-1].compare(";") == 0) {
-      return name + ": may not have ending semicolon";
+      string newstring;
+      newstring.append(this->name);
+      newstring.append(": may not have ending semicolon");
+      return newstring;
     }
 
 
@@ -997,202 +959,148 @@ public:
     return "";
   }
 
-  void SetDefault() override {}
+  void SetDefault() override {
+    this->nFFD = 0;
+    this->DegreeFFD = nullptr;
+  }
+
 };
 
-class COptionInlet : public COptionBase {
+// Class where the option is represented by (String, su2double, string, su2double, ...)
+class COptionStringDoubleList : public COptionBase {
   string name; // identifier for the option
-  unsigned short& size;
-  string*& marker;
-  su2double*& ttotal;
-  su2double*& ptotal;
-  su2double**& flowdir;
+  unsigned short & size; // how many strings are there (same as number of su2doubles)
+
+  string * & s_f; // Reference to the string fields
+  su2double* & d_f; // reference to the su2double fields
 
 public:
-  COptionInlet(string option_field_name, unsigned short& nMarker_Inlet, string*& Marker_Inlet, su2double*& Ttotal,
-               su2double*& Ptotal, su2double**& FlowDir)
-    : name(option_field_name),
-      size(nMarker_Inlet),
-      marker(Marker_Inlet),
-      ttotal(Ttotal),
-      ptotal(Ptotal),
-      flowdir(FlowDir) {
-    size = 0;
-    marker = nullptr;
-    ttotal = nullptr;
-    ptotal = nullptr;
-    flowdir = nullptr;
+  COptionStringDoubleList(string option_field_name, unsigned short & list_size, string * & string_field, su2double* & double_field) : size(list_size), s_f(string_field), d_f(double_field) {
+    this->name = option_field_name;
   }
 
-  ~COptionInlet() {
-    delete[] marker;
-    delete[] ttotal;
-    delete[] ptotal;
-    for (unsigned short i = 0; i < size; ++i) {
-      delete[] flowdir[i];
-    }
-    delete[] flowdir;
-    marker = nullptr;
-    ttotal = nullptr;
-    ptotal = nullptr;
-    flowdir = nullptr;
-  }
-
-  string SetValue(const vector<string>& option_value) override {
+  ~COptionStringDoubleList() override {};
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
-    const unsigned short totalVals = option_value.size();
-    if ((totalVals == 1) && (option_value[0].compare("NONE") == 0)) {
-      return "";
+    // There must be an even number of entries (same number of strings and doubles
+    unsigned short totalVals = option_value.size();
+    if ((totalVals % 2) != 0) {
+      if ((totalVals == 1) && (option_value[0].compare("NONE") == 0)) {
+        // It's okay to say its NONE
+        this->size = 0;
+        return "";
+      }
+      string newstring;
+      newstring.append(this->name);
+      newstring.append(": must have an even number of entries");
+      return newstring;
     }
-    if (totalVals % 6 != 0) {
-      return name + ": must have a number of entries divisible by 6";
-    }
+    unsigned short nVals = totalVals / 2;
+    this->size = nVals;
+    this->s_f = new string[nVals];
+    this->d_f = new su2double[nVals];
 
-    const unsigned short nVals = totalVals / 6;
-    size = nVals;
-    marker = new string[nVals];
-    ttotal = new su2double[nVals];
-    ptotal = new su2double[nVals];
-    flowdir = new su2double*[nVals];
     for (unsigned long i = 0; i < nVals; i++) {
-      flowdir[i] = new su2double[3];
-    }
-
-    bool err = false;
-
-    auto getval = [&](unsigned short i, unsigned short j) {
-      istringstream ss(option_value[6*i + j]);
+      this->s_f[i].assign(option_value[2*i]); // 2 because have su2double and string
+      istringstream is(option_value[2*i + 1]);
       su2double val;
-      if (!(ss >> val)) err = true;
-      return val;
-    };
-
-    for (unsigned short i = 0; i < nVals; i++) {
-      marker[i].assign(option_value[6*i]);
-      ttotal[i] = getval(i, 1);
-      ptotal[i] = getval(i, 2);
-      flowdir[i][0] = getval(i, 3);
-      flowdir[i][1] = getval(i, 4);
-      flowdir[i][2] = getval(i, 5);
-
-      if (err) return badValue("inlet", name);
-    }
-    return "";
-  }
-
-  void SetDefault() override {}
-};
-
-// Base helper for when T is not an array, does dummy allocation and de-allocation.
-template <class T>
-struct CStringValuesListHelper {
-  static T resize(unsigned short) { return T(); }
-  static T& access(T& val, unsigned short) { return val; }
-  static void clear(T&) {}
-};
-
-// Specialization for pointer types (multiple values per string).
-template <class T>
-struct CStringValuesListHelper<T*> {
-  static T* resize(unsigned short n) { return new T[n]; }
-  static T& access(T* ptr, unsigned short i) { return ptr[i]; }
-  static void clear(T* ptr) { delete [] ptr; }
-};
-
-// Class where the option is represented by (string, N * "some type", string, N * "some type", ...)
-template <class Type>
-class COptionStringValuesList final : public COptionBase {
-  const string name;     // identifier for the option
-  unsigned short& size;  // number of string-value pairs
-  string*& strings;      // the strings in the option
-  Type*& values;         // the values per string
-  unsigned short& num_vals; // how many values per string
-  unsigned short optional_num_vals = 0; // num_vals points to this when it is not provided in the ctor.
-
-public:
-  COptionStringValuesList(string name_, unsigned short& size_, string*& strings_,
-                          Type*& values_, unsigned short& num_vals_) :
-    name(name_), size(size_), strings(strings_), values(values_), num_vals(num_vals_) {
-    strings = nullptr;
-    values = nullptr;
-  }
-
-  COptionStringValuesList(string name_, unsigned short& size_, string*& strings_, Type*& values_) :
-    name(name_), size(size_), strings(strings_), values(values_), num_vals(optional_num_vals) {
-    strings = nullptr;
-    values = nullptr;
-  }
-
-  ~COptionStringValuesList() {
-    delete [] strings;
-    strings = nullptr;
-    for (unsigned short i = 0; i < size; ++i) {
-      CStringValuesListHelper<Type>::clear(values[i]);
-    }
-    delete [] values;
-    values = nullptr;
-  }
-
-  string SetValue(const vector<string>& option_value) override {
-    COptionBase::SetValue(option_value);
-    unsigned short option_size = option_value.size();
-    if ((option_size == 1) && (option_value[0].compare("NONE") == 0)) {
-      size = 0;
-      num_vals = 0;
-      return "";
-    }
-
-    /*--- Determine the number of strings: A new string is found if the first char in the option is a letter.
-     * This will fail in if a string starts with a number! Additionally, determine the number of values that
-     * are prescribed per string. ---*/
-    vector<unsigned short> num_vals_per_string;
-    /*--- Loop through the fields of the option. ---*/
-    for (const auto& val : option_value) {
-      if (isalpha(val[0])) {
-        num_vals_per_string.push_back(0);
-      } else {
-        num_vals_per_string.back()++;
+      if (!(is >> val)) {
+        return badValue(option_value, "string su2double", this->name);
       }
+      this->d_f[i] = val;
     }
-
-    /*--- Check that the same amount of values are defined per string. ---*/
-    for (auto n : num_vals_per_string) {
-      if (num_vals_per_string[0] != n)
-        SU2_MPI::Error(string("Unequal number of values defined for ") + name, CURRENT_FUNCTION);
-    }
-    num_vals = num_vals_per_string[0];
-    size = num_vals_per_string.size();
-
-    /*--- If num_vals was taken as optional, it can only be one. ---*/
-    if (optional_num_vals > 1)
-      SU2_MPI::Error(string("More than one value provided for \"string-value\" pair, in ") + name, CURRENT_FUNCTION);
-
-    strings = new string[size];
-    values = new Type[size];
-
-    auto option_it = option_value.begin();
-    for (unsigned short i = 0; i < size; i++) {
-      strings[i].assign(*option_it);
-      ++option_it;
-
-      values[i] = CStringValuesListHelper<Type>::resize(num_vals);
-      for (unsigned short j = 0; j < num_vals; j++) {
-        istringstream ss_nd(*option_it);
-        ++option_it;
-        if (!(ss_nd >> CStringValuesListHelper<Type>::access(values[i], j))) {
-          return badValue("\"string + values\"", name);
-        }
-      }
-    }
+    // Need to return something...
     return "";
   }
 
   void SetDefault() override {
-    size = 0; // There is no default value for lists
-    num_vals = 0;
+    this->size = 0; // There is no default value for list
   }
 };
 
+class COptionInlet : public COptionBase {
+  string name; // identifier for the option
+  unsigned short & size;
+  string * & marker;
+  su2double * & ttotal;
+  su2double * & ptotal;
+  su2double ** & flowdir;
+
+public:
+  COptionInlet(string option_field_name, unsigned short & nMarker_Inlet, string* & Marker_Inlet, su2double* & Ttotal, su2double* & Ptotal, su2double** & FlowDir) : size(nMarker_Inlet), marker(Marker_Inlet), ttotal(Ttotal), ptotal(Ptotal), flowdir(FlowDir) {
+    this->name = option_field_name;
+  }
+
+  ~COptionInlet() override {};
+  string SetValue(vector<string> option_value) override {
+    COptionBase::SetValue(option_value);
+    unsigned short totalVals = option_value.size();
+    if ((totalVals == 1) && (option_value[0].compare("NONE") == 0)) {
+      this->size = 0;
+      this->marker = nullptr;
+      this->ttotal = nullptr;
+      this->ptotal = nullptr;
+      this->flowdir = nullptr;
+      return "";
+    }
+
+    if (totalVals % 6 != 0) {
+      string newstring;
+      newstring.append(this->name);
+      newstring.append(": must have a number of entries divisible by 6");
+      this->size = 0;
+      this->marker = nullptr;
+      this->ttotal = nullptr;
+      this->ptotal = nullptr;
+      this->flowdir = nullptr;
+      return newstring;
+    }
+
+    unsigned short nVals = totalVals / 6;
+    this->size = nVals;
+    this->marker = new string[nVals];
+    this->ttotal = new su2double[nVals];
+    this->ptotal = new su2double[nVals];
+    this->flowdir = new su2double*[nVals];
+    for (unsigned long i = 0; i < nVals; i++) {
+      this->flowdir[i] = new su2double[3];
+    }
+
+    for (unsigned long i = 0; i < nVals; i++) {
+      this->marker[i].assign(option_value[6*i]);
+      istringstream ss_1st(option_value[6*i + 1]);
+      if (!(ss_1st >> this->ttotal[i])) {
+        return badValue(option_value, "inlet", this->name);
+      }
+      istringstream ss_2nd(option_value[6*i + 2]);
+      if (!(ss_2nd >> this->ptotal[i])) {
+        return badValue(option_value, "inlet", this->name);
+      }
+      istringstream ss_3rd(option_value[6*i + 3]);
+      if (!(ss_3rd >> this->flowdir[i][0])) {
+        return badValue(option_value, "inlet", this->name);
+      }
+      istringstream ss_4th(option_value[6*i + 4]);
+      if (!(ss_4th >> this->flowdir[i][1])) {
+        return badValue(option_value, "inlet", this->name);
+      }
+      istringstream ss_5th(option_value[6*i + 5]);
+      if (!(ss_5th >> this->flowdir[i][2])) {
+        return badValue(option_value, "inlet", this->name);
+      }
+    }
+
+    return "";
+  }
+
+  void SetDefault() override {
+    this->marker = nullptr;
+    this->ttotal = nullptr;
+    this->ptotal = nullptr;
+    this->flowdir = nullptr;
+    this->size = 0; // There is no default value for list
+  }
+};
 
 template <class Tenum>
 class COptionRiemann : public COptionBase {
@@ -1215,7 +1123,7 @@ public:
   }
   ~COptionRiemann() override {};
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     unsigned short totalVals = option_value.size();
     if ((totalVals == 1) && (option_value[0].compare("NONE") == 0)) {
@@ -1269,23 +1177,23 @@ public:
 
       istringstream ss_1st(option_value[7*i + 2]);
       if (!(ss_1st >> this->var1[i])) {
-        return badValue("Riemann", this->name);
+        return badValue(option_value, "Riemann", this->name);
       }
       istringstream ss_2nd(option_value[7*i + 3]);
       if (!(ss_2nd >> this->var2[i])) {
-        return badValue("Riemann", this->name);
+        return badValue(option_value, "Riemann", this->name);
       }
       istringstream ss_3rd(option_value[7*i + 4]);
       if (!(ss_3rd >> this->flowdir[i][0])) {
-        return badValue("Riemann", this->name);
+        return badValue(option_value, "Riemann", this->name);
       }
       istringstream ss_4th(option_value[7*i + 5]);
       if (!(ss_4th >> this->flowdir[i][1])) {
-        return badValue("Riemann", this->name);
+        return badValue(option_value, "Riemann", this->name);
       }
       istringstream ss_5th(option_value[7*i + 6]);
       if (!(ss_5th >> this->flowdir[i][2])) {
-        return badValue("Riemann", this->name);
+        return badValue(option_value, "Riemann", this->name);
       }
     }
 
@@ -1323,7 +1231,7 @@ public:
   }
   ~COptionGiles() override {};
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     unsigned long totalVals = option_value.size();
     if ((totalVals == 1) && (option_value[0].compare("NONE") == 0)) {
@@ -1383,31 +1291,31 @@ public:
 
       istringstream ss_1st(option_value[9*i + 2]);
       if (!(ss_1st >> this->var1[i])) {
-        return badValue("Giles BC", this->name);
+        return badValue(option_value, "Giles BC", this->name);
       }
       istringstream ss_2nd(option_value[9*i + 3]);
       if (!(ss_2nd >> this->var2[i])) {
-        return badValue("Giles BC", this->name);
+        return badValue(option_value, "Giles BC", this->name);
       }
       istringstream ss_3rd(option_value[9*i + 4]);
       if (!(ss_3rd >> this->flowdir[i][0])) {
-        return badValue("Giles BC", this->name);
+        return badValue(option_value, "Giles BC", this->name);
       }
       istringstream ss_4th(option_value[9*i + 5]);
       if (!(ss_4th >> this->flowdir[i][1])) {
-        return badValue("Giles BC", this->name);
+        return badValue(option_value, "Giles BC", this->name);
       }
       istringstream ss_5th(option_value[9*i + 6]);
       if (!(ss_5th >> this->flowdir[i][2])) {
-        return badValue("Giles BC", this->name);
+        return badValue(option_value, "Giles BC", this->name);
       }
       istringstream ss_6th(option_value[9*i + 7]);
       if (!(ss_6th >> this->relfac1[i])) {
-        return badValue("Giles BC", this->name);
+        return badValue(option_value, "Giles BC", this->name);
       }
       istringstream ss_7th(option_value[9*i + 8]);
       if (!(ss_7th >> this->relfac2[i])) {
-        return badValue("Giles BC", this->name);
+        return badValue(option_value, "Giles BC", this->name);
       }
     }
 
@@ -1425,179 +1333,237 @@ public:
   }
 };
 
+//Inlet condition where the input direction is assumed
 class COptionExhaust : public COptionBase {
   string name; // identifier for the option
-  unsigned short& size;
-  string*& marker;
-  su2double*& ttotal;
-  su2double*& ptotal;
+  unsigned short & size;
+  string * & marker;
+  su2double * & ttotal;
+  su2double * & ptotal;
 
 public:
-  COptionExhaust(string option_field_name, unsigned short& nMarker_Exhaust, string*& Marker_Exhaust,
-                 su2double*& Ttotal, su2double*& Ptotal)
-    : name(option_field_name),
-      size(nMarker_Exhaust),
-      marker(Marker_Exhaust),
-      ttotal(Ttotal),
-      ptotal(Ptotal) {
-    size = 0;
-    marker = nullptr;
-    ttotal = nullptr;
-    ptotal = nullptr;
+  COptionExhaust(string option_field_name, unsigned short & nMarker_Exhaust, string* & Marker_Exhaust, su2double* & Ttotal, su2double* & Ptotal) : size(nMarker_Exhaust), marker(Marker_Exhaust), ttotal(Ttotal), ptotal(Ptotal) {
+    this->name = option_field_name;
   }
 
-  ~COptionExhaust() {
-    delete[] marker;
-    delete[] ttotal;
-    delete[] ptotal;
-    marker = nullptr;
-    ttotal = nullptr;
-    ptotal = nullptr;
-  }
+  ~COptionExhaust() override {};
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
-    const unsigned short totalVals = option_value.size();
+    unsigned short totalVals = option_value.size();
     if ((totalVals == 1) && (option_value[0].compare("NONE") == 0)) {
+      this->size = 0;
+      this->marker = nullptr;
+      this->ttotal = nullptr;
+      this->ptotal = nullptr;
       return "";
     }
+
     if (totalVals % 3 != 0) {
-      return name + ": must have a number of entries divisible by 3";
+      string newstring;
+      newstring.append(this->name);
+      newstring.append(": must have a number of entries divisible by 3");
+      this->size = 0;
+      this->marker = nullptr;
+      this->ttotal = nullptr;
+      this->ptotal = nullptr;
+      return newstring;
     }
 
-    const unsigned short nVals = totalVals / 3;
-    size = nVals;
-    marker = new string[nVals];
-    ttotal = new su2double[nVals];
-    ptotal = new su2double[nVals];
+    unsigned short nVals = totalVals / 3;
+    this->size = nVals;
+    this->marker = new string[nVals];
+    this->ttotal = new su2double[nVals];
+    this->ptotal = new su2double[nVals];
 
-    for (unsigned short i = 0; i < nVals; i++) {
+    for (unsigned long i = 0; i < nVals; i++) {
       this->marker[i].assign(option_value[3*i]);
-
       istringstream ss_1st(option_value[3*i + 1]);
-      if (!(ss_1st >> ttotal[i])) return badValue("exhaust fixed", name);
-
+      if (!(ss_1st >> this->ttotal[i]))
+        return badValue(option_value, "exhaust fixed", this->name);
       istringstream ss_2nd(option_value[3*i + 2]);
-      if (!(ss_2nd >> ptotal[i])) return badValue("exhaust fixed", name);
-    }
-    return "";
-  }
-
-  void SetDefault() override {}
-};
-
-class COptionPeriodic : public COptionBase {
-  string name; // identifier for the option
-  unsigned short& size;
-  string*& marker_bound;
-  string*& marker_donor;
-  su2double**& rot_center;
-  su2double**& rot_angles;
-  su2double**& translation;
-
-public:
-  COptionPeriodic(const string option_field_name, unsigned short& nMarker_PerBound, string*& Marker_PerBound,
-                  string*& Marker_PerDonor, su2double**& RotCenter, su2double**& RotAngles, su2double**& Translation)
-    : name(option_field_name),
-      size(nMarker_PerBound),
-      marker_bound(Marker_PerBound),
-      marker_donor(Marker_PerDonor),
-      rot_center(RotCenter),
-      rot_angles(RotAngles),
-      translation(Translation) {
-    size = 0;
-    COptionPeriodic::SetDefault();
-  }
-
-  ~COptionPeriodic() {
-    delete[] marker_bound;
-    delete[] marker_donor;
-    for (unsigned short i = 0; i < size; ++i) {
-      delete[] rot_center[i];
-      delete[] rot_angles[i];
-      delete[] translation[i];
-    }
-    delete[] rot_center;
-    delete[] rot_angles;
-    delete[] translation;
-    COptionPeriodic::SetDefault();
-  }
-
-  string SetValue(const vector<string>& option_value) override {
-    COptionBase::SetValue(option_value);
-    const int mod_num = 11;
-
-    const unsigned short totalVals = option_value.size();
-    if ((totalVals == 1) && (option_value[0].compare("NONE") == 0)) {
-      return "";
-    }
-    if (totalVals % mod_num != 0) {
-      return name + ": must have a number of entries divisible by 11";
-    }
-
-    const unsigned short nVals = 2 * (totalVals / mod_num); // "2" to account for periodic and donor
-    size = nVals;
-    marker_bound = new string[nVals];
-    marker_donor = new string[nVals];
-    rot_center = new su2double*[nVals];
-    rot_angles = new su2double*[nVals];
-    translation = new su2double*[nVals];
-    for (unsigned short i = 0; i < nVals; i++) {
-      rot_center[i] = new su2double[3];
-      rot_angles[i] = new su2double[3];
-      translation[i] = new su2double[3];
-    }
-
-    const su2double deg2rad = PI_NUMBER/180.0;
-
-    bool err = false;
-
-    auto getval = [&](unsigned short i, unsigned short j) {
-      istringstream ss(option_value[mod_num*i + j]);
-      su2double val;
-      if (!(ss >> val)) err = true;
-      return val;
-    };
-
-    for (unsigned short i = 0; i < nVals / 2; i++) {
-      marker_bound[i].assign(option_value[mod_num*i]);
-      marker_donor[i].assign(option_value[mod_num*i+1]);
-      /*--- Mirror the connection between markers. ---*/
-      marker_bound[i+nVals/2] = marker_donor[i];
-      marker_donor[i+nVals/2] = marker_bound[i];
-
-      rot_center[i][0] = rot_center[i+nVals/2][0] = getval(i, 2);
-      rot_center[i][1] = rot_center[i+nVals/2][1] = getval(i, 3);
-      rot_center[i][2] = rot_center[i+nVals/2][2] = getval(i, 4);
-
-      rot_angles[i][0] = rot_angles[i+nVals/2][0] = getval(i, 5) * deg2rad;
-      rot_angles[i][1] = rot_angles[i+nVals/2][1] = getval(i, 6) * deg2rad;
-      rot_angles[i][2] = rot_angles[i+nVals/2][2] = getval(i, 7) * deg2rad;
-
-      translation[i][0] = translation[i+nVals/2][0] = getval(i, 8);
-      translation[i][1] = translation[i+nVals/2][1] = getval(i, 9);
-      translation[i][2] = translation[i+nVals/2][2] = getval(i, 10);
-
-      /*--- Mirror the rotational angles and translation vector (rotational center does not need to move). ---*/
-      rot_angles[i+nVals/2][0] *= -1;
-      rot_angles[i+nVals/2][1] *= -1;
-      rot_angles[i+nVals/2][2] *= -1;
-      translation[i+nVals/2][0] *= -1;
-      translation[i+nVals/2][1] *= -1;
-      translation[i+nVals/2][2] *= -1;
-
-      if (err) return badValue("periodic", name);
+      if (!(ss_2nd >> this->ptotal[i]))
+        return badValue(option_value, "exhaust fixed", this->name);
     }
 
     return "";
   }
 
   void SetDefault() override {
-    marker_bound = nullptr;
-    marker_donor = nullptr;
-    rot_center = nullptr;
-    rot_angles = nullptr;
-    translation = nullptr;
+    this->marker = nullptr;
+    this->ttotal = nullptr;
+    this->ptotal = nullptr;
+    this->size = 0; // There is no default value for list
+  }
+
+};
+
+class COptionPeriodic : public COptionBase {
+  string name; // identifier for the option
+  unsigned short & size;
+  string * & marker_bound;
+  string * & marker_donor;
+  su2double ** & rot_center;
+  su2double ** & rot_angles;
+  su2double ** & translation;
+
+public:
+  COptionPeriodic(const string option_field_name, unsigned short & nMarker_PerBound,
+                  string* & Marker_PerBound, string* & Marker_PerDonor,
+                  su2double** & RotCenter, su2double** & RotAngles, su2double** & Translation) : size(nMarker_PerBound), marker_bound(Marker_PerBound), marker_donor(Marker_PerDonor), rot_center(RotCenter), rot_angles(RotAngles), translation(Translation) {
+    this->name = option_field_name;
+  }
+
+  ~COptionPeriodic() override {};
+  string SetValue(vector<string> option_value) override {
+    COptionBase::SetValue(option_value);
+    const int mod_num = 11;
+
+    unsigned short totalVals = option_value.size();
+    if ((totalVals == 1) && (option_value[0].compare("NONE") == 0)) {
+      this->size = 0;
+      this->marker_bound = nullptr;
+      this->marker_donor = nullptr;
+      this->rot_center = nullptr;
+      this->rot_angles = nullptr;
+      this->translation = nullptr;
+      return "";
+    }
+
+    if (totalVals % mod_num != 0) {
+      string newstring;
+      newstring.append(this->name);
+      newstring.append(": must have a number of entries divisible by 11");
+      this->size = 0;
+      this->marker_bound = nullptr;
+      this->marker_donor = nullptr;
+      this->rot_center = nullptr;
+      this->rot_angles = nullptr;
+      this->translation = nullptr;
+      return newstring;
+    }
+
+    unsigned short nVals = 2 * (totalVals / mod_num); // To account for periodic and donor
+    this->size = nVals;
+    this->marker_bound = new string[nVals];
+    this->marker_donor = new string[nVals];
+    this->rot_center = new su2double*[nVals];
+    this->rot_angles = new su2double*[nVals];
+    this->translation = new su2double*[nVals];
+    for (unsigned long i = 0; i < nVals; i++) {
+      this->rot_center[i] = new su2double[3];
+      this->rot_angles[i] = new su2double[3];
+      this->translation[i] = new su2double[3];
+    }
+
+    su2double deg2rad = PI_NUMBER/180.0;
+
+    for (unsigned long i = 0; i < (nVals/2); i++) {
+      this->marker_bound[i].assign(option_value[mod_num*i]);
+      this->marker_donor[i].assign(option_value[mod_num*i+1]);
+      istringstream ss_1st(option_value[mod_num*i + 2]);
+      if (!(ss_1st >> this->rot_center[i][0])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_2nd(option_value[mod_num*i + 3]);
+      if (!(ss_2nd >> this->rot_center[i][1])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_3rd(option_value[mod_num*i + 4]);
+      if (!(ss_3rd >> this->rot_center[i][2])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_4th(option_value[mod_num*i + 5]);
+      if (!(ss_4th >> this->rot_angles[i][0])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_5th(option_value[mod_num*i + 6]);
+      if (!(ss_5th >> this->rot_angles[i][1])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_6th(option_value[mod_num*i + 7]);
+      if (!(ss_6th >> this->rot_angles[i][2])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_7th(option_value[mod_num*i + 8]);
+      if (!(ss_7th >> this->translation[i][0])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_8th(option_value[mod_num*i + 9]);
+      if (!(ss_8th >> this->translation[i][1])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_9th(option_value[mod_num*i + 10]);
+      if (!(ss_9th >> this->translation[i][2])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      this->rot_angles[i][0] *= deg2rad;
+      this->rot_angles[i][1] *= deg2rad;
+      this->rot_angles[i][2] *= deg2rad;
+    }
+
+    for (unsigned long i = (nVals/2); i < nVals; i++) {
+      this->marker_bound[i].assign(option_value[mod_num*(i-nVals/2)+1]);
+      this->marker_donor[i].assign(option_value[mod_num*(i-nVals/2)]);
+      istringstream ss_1st(option_value[mod_num*(i-nVals/2) + 2]);
+      if (!(ss_1st >> this->rot_center[i][0])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_2nd(option_value[mod_num*(i-nVals/2) + 3]);
+      if (!(ss_2nd >> this->rot_center[i][1])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_3rd(option_value[mod_num*(i-nVals/2) + 4]);
+      if (!(ss_3rd >> this->rot_center[i][2])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_4th(option_value[mod_num*(i-nVals/2) + 5]);
+      if (!(ss_4th >> this->rot_angles[i][0])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_5th(option_value[mod_num*(i-nVals/2) + 6]);
+      if (!(ss_5th >> this->rot_angles[i][1])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_6th(option_value[mod_num*(i-nVals/2) + 7]);
+      if (!(ss_6th >> this->rot_angles[i][2])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_7th(option_value[mod_num*(i-nVals/2) + 8]);
+      if (!(ss_7th >> this->translation[i][0])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_8th(option_value[mod_num*(i-nVals/2) + 9]);
+      if (!(ss_8th >> this->translation[i][1])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      istringstream ss_9th(option_value[mod_num*(i-nVals/2) + 10]);
+      if (!(ss_9th >> this->translation[i][2])) {
+        return badValue(option_value, "periodic", this->name);
+      }
+      /*--- Mirror the rotational angles and translation vector (rotational
+       center does not need to move) ---*/
+      this->rot_center[i][0] *= 1.0;
+      this->rot_center[i][1] *= 1.0;
+      this->rot_center[i][2] *= 1.0;
+      this->rot_angles[i][0] *= -deg2rad;
+      this->rot_angles[i][1] *= -deg2rad;
+      this->rot_angles[i][2] *= -deg2rad;
+      this->translation[i][0] *= -1.0;
+      this->translation[i][1] *= -1.0;
+      this->translation[i][2] *= -1.0;
+    }
+
+    return "";
+  }
+
+  void SetDefault() override {
+    this->size = 0;
+    this->marker_bound = nullptr;
+    this->marker_donor = nullptr;
+    this->rot_center = nullptr;
+    this->rot_angles = nullptr;
+    this->translation = nullptr;
   }
 };
 
@@ -1614,7 +1580,7 @@ public:
   }
 
   ~COptionTurboPerformance() override {};
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     const int mod_num = 2;
 
@@ -1664,7 +1630,7 @@ public:
   }
   ~COptionPython() override {};
   // No checking happens with python options
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     return "";
   }
@@ -1694,7 +1660,7 @@ public:
   }
 
   ~COptionActDisk() override {};
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     const int mod_num = 8;
     unsigned short totalVals = option_value.size();
@@ -1733,27 +1699,27 @@ public:
       this->marker_outlet[i].assign(option_value[mod_num*i+1]);
       istringstream ss_1st(option_value[mod_num*i + 2]);
       if (!(ss_1st >> this->press_jump[i][0])) {
-        return badValue(tname, this->name);
+        return badValue(option_value, tname, this->name);
       }
       istringstream ss_2nd(option_value[mod_num*i + 3]);
       if (!(ss_2nd >> this->temp_jump[i][0])) {
-        return badValue(tname, this->name);
+        return badValue(option_value, tname, this->name);
       }
       istringstream ss_3rd(option_value[mod_num*i + 4]);
       if (!(ss_3rd >> this->omega[i][0])) {
-        return badValue(tname, this->name);
+        return badValue(option_value, tname, this->name);
       }
       istringstream ss_4th(option_value[mod_num*i + 5]);
       if (!(ss_4th >> this->press_jump[i][1])) {
-        return badValue(tname, this->name);
+        return badValue(option_value, tname, this->name);
       }
       istringstream ss_5th(option_value[mod_num*i + 6]);
       if (!(ss_5th >> this->temp_jump[i][1])) {
-        return badValue(tname, this->name);
+        return badValue(option_value, tname, this->name);
       }
       istringstream ss_6th(option_value[mod_num*i + 7]);
       if (!(ss_6th >> this->omega[i][1])) {
-        return badValue(tname, this->name);
+        return badValue(option_value, tname, this->name);
       }
     }
     return "";
@@ -1771,42 +1737,29 @@ public:
 
 class COptionWallFunction : public COptionBase {
   string name; // identifier for the option
-  unsigned short& nMarkers;
-  string*& markers;
-  WALL_FUNCTIONS*& walltype;
-  unsigned short**& intInfo;
-  su2double**& doubleInfo;
+  unsigned short &nMarkers;
+  string* &markers;
+  WALL_FUNCTIONS*  &walltype;
+  unsigned short** &intInfo;
+  su2double**      &doubleInfo;
 
 public:
-  COptionWallFunction(const string name_WF, unsigned short& nMarker_WF, string*& Marker_WF, WALL_FUNCTIONS*& type_WF,
-                      unsigned short**& intInfo_WF, su2double**& doubleInfo_WF)
-    : name(name_WF),
-      nMarkers(nMarker_WF),
-      markers(Marker_WF),
-      walltype(type_WF),
-      intInfo(intInfo_WF),
-      doubleInfo(doubleInfo_WF) {
-    nMarkers = 0;
-    COptionWallFunction::SetDefault();
+  COptionWallFunction(const string name, unsigned short &nMarker_WF,
+                      string* &Marker_WF, WALL_FUNCTIONS* &type_WF,
+                      unsigned short** &intInfo_WF, su2double** &doubleInfo_WF) :
+  nMarkers(nMarker_WF), markers(Marker_WF), walltype(type_WF),
+  intInfo(intInfo_WF), doubleInfo(doubleInfo_WF) {
+    this->name = name;
   }
 
-  ~COptionWallFunction() {
-    delete[] markers;
-    delete[] walltype;
-    for (unsigned short i = 0; i < nMarkers; ++i) {
-      delete[] intInfo[i];
-      delete[] doubleInfo[i];
-    }
-    delete[] intInfo;
-    delete[] doubleInfo;
-    COptionWallFunction::SetDefault();
-  }
+  ~COptionWallFunction() override{}
 
-  string SetValue(const vector<string>& option_value) override {
+  string SetValue(vector<string> option_value) override {
     COptionBase::SetValue(option_value);
     /*--- First check if NONE is specified. ---*/
-    const unsigned short totalSize = option_value.size();
+    unsigned short totalSize = option_value.size();
     if ((totalSize == 1) && (option_value[0].compare("NONE") == 0)) {
+      this->SetDefault();
       return "";
     }
 
@@ -1877,8 +1830,13 @@ public:
     this->nMarkers   = nVals;
     this->markers    = new string[nVals];
     this->walltype   = new WALL_FUNCTIONS[nVals];
-    this->intInfo    = new unsigned short*[nVals]();
-    this->doubleInfo = new su2double*[nVals]();
+    this->intInfo    = new unsigned short*[nVals];
+    this->doubleInfo = new su2double*[nVals];
+
+    for (unsigned short i=0; i<nVals; i++) {
+      this->intInfo[i]    = nullptr;
+      this->doubleInfo[i] = nullptr;
+    }
 
     /*--- Loop over the wall markers and store the info in the
           appropriate arrays. ---*/
@@ -1908,17 +1866,17 @@ public:
 
           istringstream ss_1st(option_value[counter++]);
           if (!(ss_1st >> this->doubleInfo[i][0])) {
-            return badValue("su2double", this->name);
+            return badValue(option_value, "su2double", this->name);
           }
 
           istringstream ss_2nd(option_value[counter++]);
           if (!(ss_2nd >> this->doubleInfo[i][1])) {
-            return badValue("su2double", this->name);
+            return badValue(option_value, "su2double", this->name);
           }
 
           istringstream ss_3rd(option_value[counter++]);
           if (!(ss_3rd >> this->intInfo[i][0])) {
-            return badValue("unsigned short", this->name);
+            return badValue(option_value, "unsigned short", this->name);
           }
 
           break;
@@ -1932,7 +1890,7 @@ public:
           this->doubleInfo[i] = new su2double[1];
 
           /* Check for a valid RANS turbulence model. */
-          map<string, TURB_MODEL>::const_iterator iit;
+          map<string, ENUM_TURB_MODEL>::const_iterator iit;
           iit = Turb_Model_Map.find(option_value[counter++]);
           if(iit == Turb_Model_Map.end()) {
             string newstring;
@@ -1947,10 +1905,12 @@ public:
             return newstring;
           }
 
+          this->intInfo[i][0] = iit->second;
+
           /* Extract the exchange distance. */
           istringstream ss_1st(option_value[counter++]);
           if (!(ss_1st >> this->doubleInfo[i][0])) {
-            return badValue("su2double", this->name);
+            return badValue(option_value, "su2double", this->name);
           }
 
           break;
@@ -1964,17 +1924,17 @@ public:
 
           istringstream ss_1st(option_value[counter++]);
           if (!(ss_1st >> this->doubleInfo[i][0])) {
-            return badValue("su2double", this->name);
+            return badValue(option_value, "su2double", this->name);
           }
 
           istringstream ss_2nd(option_value[counter++]);
           if (!(ss_2nd >> this->doubleInfo[i][1])) {
-            return badValue("su2double", this->name);
+            return badValue(option_value, "su2double", this->name);
           }
 
           istringstream ss_3rd(option_value[counter++]);
           if (!(ss_3rd >> this->intInfo[i][0])) {
-            return badValue("unsigned short", this->name);
+            return badValue(option_value, "unsigned short", this->name);
           }
 
           break;
@@ -1990,9 +1950,10 @@ public:
   }
 
   void SetDefault() override {
-    markers = nullptr;
-    walltype = nullptr;
-    intInfo = nullptr;
-    doubleInfo = nullptr;
+    this->nMarkers   = 0;
+    this->markers    = nullptr;
+    this->walltype   = nullptr;
+    this->intInfo    = nullptr;
+    this->doubleInfo = nullptr;
   }
 };

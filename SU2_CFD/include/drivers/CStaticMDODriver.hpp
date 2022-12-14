@@ -1,9 +1,9 @@
 /*!
  * \file CStaticMDODriver.hpp
- * \brief Headers of the main subroutines for driving MDA/O problems.
+ * \brief Headers of the main subroutines for driving single or multi-zone problems.
  *        The subroutines and functions are in the <i>driver_structure.cpp</i> file.
- * \author  P. Ranjan
- * \version 2.0.0 "Columbia"
+ * \author T. Economon, H. Kline, R. Sanchez
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
@@ -33,9 +33,9 @@
 
 /*!
  * \class CStaticMDODriver
- * \brief Class for driving MDA/O solvers.
- * \author P. Ranjan
- * \version 2.0.0 "Columbia"
+ * \brief Class for driving single-zone solvers.
+ * \author R. Sanchez
+ * \version 7.2.0 "Blackbird"
  */
 class CStaticMDODriver : public CDriver {
 protected:
@@ -44,7 +44,7 @@ protected:
 
 public:
 
-  double target_time = 0.0;
+  double target_time = 50.0;
 
 
   /*!

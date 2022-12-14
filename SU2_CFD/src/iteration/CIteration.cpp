@@ -2,14 +2,14 @@
  * \file iteration_structure.cpp
  * \brief Main subroutines used by SU2_CFD
  * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -30,15 +30,17 @@
 #include "../../include/output/COutput.hpp"
 #include "../../include/solvers/CFEASolver.hpp"
 
+
+
 void CIteration::SetGrid_Movement(CGeometry** geometry, CSurfaceMovement* surface_movement,
                                   CVolumetricMovement* grid_movement, CSolver*** solver, CConfig* config,
-                                  unsigned long IntIter, unsigned long TimeIter) 
-                                  {
-  unsigned short Kind_Grid_Movement = config->GetKind_GridMovement();
+                                  unsigned long IntIter, unsigned long TimeIter) {
+
+  unsigned short Kind_Grid_Movement;
+  
   bool adjoint = config->GetContinuous_Adjoint();
 
   unsigned short val_iZone = config->GetiZone();
-
 
   bool Smdo_mode =config->GetSMDO_Mode();
   bool Umdo_mode =config->GetUMDO_Mode();
@@ -53,9 +55,12 @@ void CIteration::SetGrid_Movement(CGeometry** geometry, CSurfaceMovement* surfac
     Kind_Grid_Movement = config->GetKind_GridMovement();
   }
 
+ 
+
+
 
   /*--- Perform mesh movement depending on specified type ---*/
-  switch (Kind_Grid_Movement) 
+  switch (Kind_Grid_Movement)
   {
     case RIGID_MOTION:
 
@@ -80,10 +85,14 @@ void CIteration::SetGrid_Movement(CGeometry** geometry, CSurfaceMovement* surfac
       /*--- Already initialized in the static mesh movement routine at driver level. ---*/
     case STEADY_TRANSLATION:
     case ROTATING_FRAME:
-    break;
-    /* Case for mesh motion with external elastic solver during MDO */
+      break;   
+
+
+
+     /* --- Case for mesh motion with external elastic solver during MDO ---*/
     case PRECICE_MOVEMENT:
-      if (rank == MASTER_NODE)
+
+      if(rank == MASTER_NODE)
       {
         std::cout<<"Updating farfield nodes after aero-elastic update!"<<std::endl;
       }
@@ -92,13 +101,13 @@ void CIteration::SetGrid_Movement(CGeometry** geometry, CSurfaceMovement* surfac
      
       if (rank == MASTER_NODE)
         cout << "Computing grid velocities by finite differencing ." << endl;
-        geometry[MESH_0]->SetGridVelocity(config);
+      geometry[MESH_0]->SetGridVelocity(config);
 
-      /* Update the multigrid structure after moving the finest grid,
-       including computing the grid velocities on the coarser levels */
-      grid_movement->UpdateMultiGrid(geometry, config);
+      /*--- Update the multigrid structure after moving the finest grid,
+       including computing the grid velocities on the coarser levels. ---*/
+     grid_movement->UpdateMultiGrid(geometry, config);
 
-    break;
+      break;
   }
 
   if (config->GetSurface_Movement(AEROELASTIC) || config->GetSurface_Movement(AEROELASTIC_RIGID_MOTION)) {
@@ -184,7 +193,8 @@ void CIteration::SetGrid_Movement(CGeometry** geometry, CSurfaceMovement* surfac
 }
 
 void CIteration::SetMesh_Deformation(CGeometry** geometry, CSolver** solver, CNumerics*** numerics, CConfig* config,
-                                     RECORDING kind_recording) {
+                                     RECORDING kind_recording) 
+{
   if (!config->GetDeform_Mesh()) return;
 
   /*--- Perform the elasticity mesh movement ---*/
@@ -194,6 +204,11 @@ void CIteration::SetMesh_Deformation(CGeometry** geometry, CSolver** solver, CNu
     /*--- In a primal run, AD::TapeActive returns a false ---*/
     /*--- In any other recordings, the tape is passive during the deformation. ---*/
     wasActive = AD::BeginPassive();
+  }
+
+  if (rank == MASTER_NODE)
+  {
+    std::cout << "Deforming mesh using linear elasticity with new DEF class" << std::endl;
   }
 
   /*--- Set the stiffness of each element mesh into the mesh numerics ---*/

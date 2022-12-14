@@ -2,14 +2,14 @@
  * \file common.hpp
  * \brief Common convection-related methods.
  * \author P. Gomes, F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -101,7 +101,7 @@ FORCEINLINE void musclEdgeLimited(Int iPoint,
  */
 template<class ReconVarType, class PrimVarType, size_t nDim, class VariableType>
 FORCEINLINE CPair<ReconVarType> reconstructPrimitives(Int iPoint, Int jPoint, bool muscl,
-                                                      LIMITER limiterType,
+                                                      ENUM_LIMITER limiterType,
                                                       const CPair<PrimVarType>& V1st,
                                                       const VectorDbl<nDim>& vector_ij,
                                                       const VariableType& solution) {
@@ -119,11 +119,11 @@ FORCEINLINE CPair<ReconVarType> reconstructPrimitives(Int iPoint, Int jPoint, bo
 
   if (muscl) {
     switch (limiterType) {
-    case LIMITER::NONE:
+    case NO_LIMITER:
       musclUnlimited(iPoint, vector_ij, 0.5, gradients, V.i.all);
       musclUnlimited(jPoint, vector_ij,-0.5, gradients, V.j.all);
       break;
-    case LIMITER::VAN_ALBADA_EDGE:
+    case VAN_ALBADA_EDGE:
       musclEdgeLimited(iPoint, jPoint, vector_ij, gradients, V);
       break;
     default:

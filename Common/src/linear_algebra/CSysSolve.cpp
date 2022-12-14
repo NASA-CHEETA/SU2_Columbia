@@ -2,14 +2,14 @@
  * \file CSysSolve.cpp
  * \brief Main classes required for solving linear systems of equations
  * \author J. Hicken, F. Palacios, T. Economon, P. Gomes
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -28,6 +28,7 @@
 #include "../../include/linear_algebra/CSysSolve.hpp"
 #include "../../include/linear_algebra/CSysSolve_b.hpp"
 #include "../../include/parallelization/omp_structure.hpp"
+#include "../../include/option_structure.hpp"
 #include "../../include/CConfig.hpp"
 #include "../../include/geometry/CGeometry.hpp"
 #include "../../include/linear_algebra/CSysMatrix.hpp"
@@ -48,9 +49,9 @@ namespace {
 }
 
 template<class ScalarType>
-CSysSolve<ScalarType>::CSysSolve(LINEAR_SOLVER_MODE linear_solver_mode) :
+CSysSolve<ScalarType>::CSysSolve(const bool mesh_deform_mode) :
   eps(linSolEpsilon<ScalarType>()),
-  lin_sol_mode(linear_solver_mode),
+  mesh_deform(mesh_deform_mode),
   cg_ready(false),
   bcg_ready(false),
   smooth_ready(false),
@@ -214,8 +215,8 @@ unsigned long CSysSolve<ScalarType>::CG_LinSolver(const CSysVector<ScalarType> &
    *    do this since the working vectors are shared. ---*/
 
   if (!cg_ready) {
-    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
-    {
+    SU2_OMP_BARRIER
+    SU2_OMP_MASTER {
       auto nVar = b.GetNVar();
       auto nBlk = b.GetNBlk();
       auto nBlkDomain = b.GetNBlkDomain();
@@ -227,7 +228,8 @@ unsigned long CSysSolve<ScalarType>::CG_LinSolver(const CSysVector<ScalarType> &
 
       cg_ready = true;
     }
-    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+    END_SU2_OMP_MASTER
+    SU2_OMP_BARRIER
   }
 
   /*--- Calculate the initial residual, compute norm, and check if system is already solved ---*/
@@ -251,7 +253,7 @@ unsigned long CSysSolve<ScalarType>::CG_LinSolver(const CSysVector<ScalarType> &
     if (tol_type == LinearToleranceType::RELATIVE) norm0 = norm_r;
 
     if ((norm_r < tol*norm0) || (norm_r < eps)) {
-      if (master && (lin_sol_mode!=LINEAR_SOLVER_MODE::MESH_DEFORM)) cout << "CSysSolve::ConjugateGradient(): system solved by initial guess." << endl;
+      if (master && !mesh_deform) cout << "CSysSolve::ConjugateGradient(): system solved by initial guess." << endl;
       return 0;
     }
 
@@ -357,8 +359,8 @@ unsigned long CSysSolve<ScalarType>::FGMRES_LinSolver(const CSysVector<ScalarTyp
   /*--- Allocate if not allocated yet ---*/
 
   if (W.size() <= m || (flexible && Z.size() <= m)) {
-    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
-    {
+    SU2_OMP_BARRIER
+    SU2_OMP_MASTER {
       W.resize(m+1);
       for (auto& w : W) w.Initialize(x.GetNBlk(), x.GetNBlkDomain(), x.GetNVar(), nullptr);
       if (flexible) {
@@ -366,7 +368,8 @@ unsigned long CSysSolve<ScalarType>::FGMRES_LinSolver(const CSysVector<ScalarTyp
         for (auto& z : Z) z.Initialize(x.GetNBlk(), x.GetNBlkDomain(), x.GetNVar(), nullptr);
       }
     }
-    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+    END_SU2_OMP_MASTER
+    SU2_OMP_BARRIER
   }
 
   /*--- Define various arrays. In parallel, each thread of each rank has and works
@@ -547,8 +550,8 @@ unsigned long CSysSolve<ScalarType>::BCGSTAB_LinSolver(const CSysVector<ScalarTy
   /*--- Allocate if not allocated yet ---*/
 
   if (!bcg_ready) {
-    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
-    {
+    SU2_OMP_BARRIER
+    SU2_OMP_MASTER {
       auto nVar = b.GetNVar();
       auto nBlk = b.GetNBlk();
       auto nBlkDomain = b.GetNBlkDomain();
@@ -562,7 +565,8 @@ unsigned long CSysSolve<ScalarType>::BCGSTAB_LinSolver(const CSysVector<ScalarTy
 
       bcg_ready = true;
     }
-    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+    END_SU2_OMP_MASTER
+    SU2_OMP_BARRIER
   }
 
   /*--- Calculate the initial residual, compute norm, and check if system is already solved ---*/
@@ -712,8 +716,8 @@ unsigned long CSysSolve<ScalarType>::Smoother_LinSolver(const CSysVector<ScalarT
    product (A_x), for the latter two this is done only on the first call to the method. ---*/
 
   if (!smooth_ready) {
-    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
-    {
+    SU2_OMP_BARRIER
+    SU2_OMP_MASTER {
       auto nVar = b.GetNVar();
       auto nBlk = b.GetNBlk();
       auto nBlkDomain = b.GetNBlkDomain();
@@ -724,7 +728,8 @@ unsigned long CSysSolve<ScalarType>::Smoother_LinSolver(const CSysVector<ScalarT
 
       smooth_ready = true;
     }
-    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+    END_SU2_OMP_MASTER
+    SU2_OMP_BARRIER
   }
 
   /*--- Compute the initial residual and check if the system is already solved (if in COMM_FULL mode). ---*/
@@ -825,40 +830,30 @@ unsigned long CSysSolve<ScalarType>::Solve(CSysMatrix<ScalarType> & Jacobian, co
   ScalarType SolverTol;
   bool ScreenOutput;
 
-  switch (lin_sol_mode) {
-    /*--- Mesh Deformation mode ---*/
-    case LINEAR_SOLVER_MODE::MESH_DEFORM: {
-      KindSolver   = config->GetKind_Deform_Linear_Solver();
-      KindPrecond  = config->GetKind_Deform_Linear_Solver_Prec();
-      MaxIter      = config->GetDeform_Linear_Solver_Iter();
-      SolverTol    = SU2_TYPE::GetValue(config->GetDeform_Linear_Solver_Error());
-      ScreenOutput = config->GetDeform_Output();
-      break;
-    }
+  /*--- Normal mode ---*/
 
-    /*--- Gradient Smoothing mode ---*/
-    case LINEAR_SOLVER_MODE::GRADIENT_MODE: {
-      KindSolver   = config->GetKind_Grad_Linear_Solver();
-      KindPrecond  = config->GetKind_Grad_Linear_Solver_Prec();
-      MaxIter      = config->GetGrad_Linear_Solver_Iter();
-      SolverTol    = SU2_TYPE::GetValue(config->GetGrad_Linear_Solver_Error());
-      ScreenOutput = true;
-      break;
-    }
+  if(!mesh_deform) {
 
-    /*--- Normal mode
-     * assumes that 'lin_sol_mode==LINEAR_SOLVER_MODE::STANDARD', but does not enforce it to avoid compiler warning. ---*/
-    default: {
-      KindSolver   = config->GetKind_Linear_Solver();
-      KindPrecond  = config->GetKind_Linear_Solver_Prec();
-      MaxIter      = config->GetLinear_Solver_Iter();
-      SolverTol    = SU2_TYPE::GetValue(config->GetLinear_Solver_Error());
-      ScreenOutput = false;
-      break;
-    }
+    KindSolver   = config->GetKind_Linear_Solver();
+    KindPrecond  = config->GetKind_Linear_Solver_Prec();
+    MaxIter      = config->GetLinear_Solver_Iter();
+    SolverTol    = SU2_TYPE::GetValue(config->GetLinear_Solver_Error());
+    ScreenOutput = false;
+  }
+
+  /*--- Mesh Deformation mode ---*/
+
+  else {
+
+    KindSolver   = config->GetKind_Deform_Linear_Solver();
+    KindPrecond  = config->GetKind_Deform_Linear_Solver_Prec();
+    MaxIter      = config->GetDeform_Linear_Solver_Iter();
+    SolverTol    = SU2_TYPE::GetValue(config->GetDeform_Linear_Solver_Error());
+    ScreenOutput = config->GetDeform_Output();
   }
 
   /*--- Stop the recording for the linear solver ---*/
+
   bool TapeActive = NO;
 
   if (config->GetDiscrete_Adjoint()) {
@@ -866,11 +861,12 @@ unsigned long CSysSolve<ScalarType>::Solve(CSysMatrix<ScalarType> & Jacobian, co
 
     TapeActive = AD::getGlobalTape().isActive();
 
-    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS {
+    SU2_OMP_MASTER {
       AD::StartExtFunc(false, false);
       AD::SetExtFuncIn(&LinSysRes[0], LinSysRes.GetLocSize());
     }
-    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+    END_SU2_OMP_MASTER
+    SU2_OMP_BARRIER
 
     AD::StopRecording();
 #endif
@@ -935,11 +931,10 @@ unsigned long CSysSolve<ScalarType>::Solve(CSysMatrix<ScalarType> & Jacobian, co
   if(TapeActive) {
 
     /*--- To keep the behavior of SU2_DOT, but not strictly required since jacobian is symmetric(?). ---*/
-    const bool RequiresTranspose = ((lin_sol_mode!=LINEAR_SOLVER_MODE::MESH_DEFORM) || (config->GetKind_SU2() == SU2_COMPONENT::SU2_DOT));
+    const bool RequiresTranspose = !mesh_deform || (config->GetKind_SU2() == SU2_COMPONENT::SU2_DOT);
 
-    if      (lin_sol_mode==LINEAR_SOLVER_MODE::MESH_DEFORM)   KindPrecond = config->GetKind_Deform_Linear_Solver_Prec();
-    else if (lin_sol_mode==LINEAR_SOLVER_MODE::GRADIENT_MODE) KindPrecond  = config->GetKind_Grad_Linear_Solver_Prec();
-    else    KindPrecond = config->GetKind_DiscAdj_Linear_Prec();
+    if (!mesh_deform) KindPrecond = config->GetKind_DiscAdj_Linear_Prec();
+    else              KindPrecond = config->GetKind_Deform_Linear_Solver_Prec();
 
     /*--- Build preconditioner for the transposed Jacobian ---*/
 
@@ -967,9 +962,9 @@ unsigned long CSysSolve<ScalarType>::Solve(CSysMatrix<ScalarType> & Jacobian, co
     /*--- Start recording if it was stopped for the linear solver ---*/
 #ifdef CODI_REVERSE_TYPE
     AD::StartRecording();
+    SU2_OMP_BARRIER
 
-    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
-    {
+    SU2_OMP_MASTER {
       AD::SetExtFuncOut(&LinSysSol[0], LinSysSol.GetLocSize());
       AD::FuncHelper->addUserData(&LinSysRes);
       AD::FuncHelper->addUserData(&LinSysSol);
@@ -978,11 +973,15 @@ unsigned long CSysSolve<ScalarType>::Solve(CSysMatrix<ScalarType> & Jacobian, co
       AD::FuncHelper->addUserData(config);
       AD::FuncHelper->addUserData(this);
     }
-    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+    END_SU2_OMP_MASTER
+    SU2_OMP_BARRIER
 
     AD::FuncHelper->addToTape(CSysSolve_b<ScalarType>::Solve_b);
+    SU2_OMP_BARRIER
 
-    SU2_OMP_SAFE_GLOBAL_ACCESS(AD::EndExtFunc();)
+    SU2_OMP_MASTER
+    AD::EndExtFunc();
+    END_SU2_OMP_MASTER
 #endif
   }
 
@@ -999,37 +998,26 @@ unsigned long CSysSolve<ScalarType>::Solve_b(CSysMatrix<ScalarType> & Jacobian, 
   ScalarType SolverTol;
   bool ScreenOutput;
 
-  switch (lin_sol_mode) {
-    /*--- Mesh Deformation mode ---*/
-    case LINEAR_SOLVER_MODE::MESH_DEFORM: {
-      KindSolver   = config->GetKind_Deform_Linear_Solver();
-      KindPrecond  = config->GetKind_Deform_Linear_Solver_Prec();
-      MaxIter      = config->GetDeform_Linear_Solver_Iter();
-      SolverTol    = SU2_TYPE::GetValue(config->GetDeform_Linear_Solver_Error());
-      ScreenOutput = config->GetDeform_Output();
-      break;
-    }
+  /*--- Normal mode ---*/
 
-    /*--- Gradient Smoothing mode ---*/
-    case LINEAR_SOLVER_MODE::GRADIENT_MODE: {
-      KindSolver   = config->GetKind_Grad_Linear_Solver();
-      KindPrecond  = config->GetKind_Grad_Linear_Solver_Prec();
-      MaxIter      = config->GetGrad_Linear_Solver_Iter();
-      SolverTol    = SU2_TYPE::GetValue(config->GetGrad_Linear_Solver_Error());
-      ScreenOutput = true;
-      break;
-    }
+  if(!mesh_deform) {
 
-    /*--- Normal mode
-     * assumes that 'lin_sol_mode==LINEAR_SOLVER_MODE::STANDARD', but does not enforce it to avoid compiler warning. ---*/
-    default: {
-      KindSolver   = config->GetKind_Linear_Solver();
-      KindPrecond  = config->GetKind_Linear_Solver_Prec();
-      MaxIter      = config->GetLinear_Solver_Iter();
-      SolverTol    = SU2_TYPE::GetValue(config->GetLinear_Solver_Error());
-      ScreenOutput = false;
-      break;
-    }
+    KindSolver   = config->GetKind_DiscAdj_Linear_Solver();
+    KindPrecond  = config->GetKind_DiscAdj_Linear_Prec();
+    MaxIter      = config->GetLinear_Solver_Iter();
+    SolverTol    = SU2_TYPE::GetValue(config->GetLinear_Solver_Error());
+    ScreenOutput = false;
+  }
+
+  /*--- Mesh Deformation mode ---*/
+
+  else {
+
+    KindSolver   = config->GetKind_Deform_Linear_Solver();
+    KindPrecond  = config->GetKind_Deform_Linear_Solver_Prec();
+    MaxIter      = config->GetDeform_Linear_Solver_Iter();
+    SolverTol    = SU2_TYPE::GetValue(config->GetDeform_Linear_Solver_Error());
+    ScreenOutput = config->GetDeform_Output();
   }
 
   /*--- Set up preconditioner and matrix-vector product ---*/
@@ -1048,32 +1036,29 @@ unsigned long CSysSolve<ScalarType>::Solve_b(CSysMatrix<ScalarType> & Jacobian, 
 
   /*--- Solve the system ---*/
 
-  /*--- Local variable to prevent all threads from writing to a shared location (this->Residual). ---*/
-  ScalarType residual = 0.0;
-
   HandleTemporariesIn(LinSysRes, LinSysSol);
 
   switch(KindSolver) {
     case FGMRES:
-      IterLinSol = FGMRES_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol , MaxIter, residual, ScreenOutput, config);
+      IterLinSol = FGMRES_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol , MaxIter, Residual, ScreenOutput, config);
       break;
     case RESTARTED_FGMRES:
-      IterLinSol = RFGMRES_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol , MaxIter, residual, ScreenOutput, config);
+      IterLinSol = RFGMRES_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol , MaxIter, Residual, ScreenOutput, config);
       break;
     case BCGSTAB:
-      IterLinSol = BCGSTAB_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol , MaxIter, residual, ScreenOutput, config);
+      IterLinSol = BCGSTAB_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol , MaxIter, Residual, ScreenOutput, config);
       break;
     case CONJUGATE_GRADIENT:
-      IterLinSol = CG_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol, MaxIter, residual, ScreenOutput, config);
+      IterLinSol = CG_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol, MaxIter, Residual, ScreenOutput, config);
       break;
     case SMOOTHER:
-      IterLinSol = Smoother_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol, MaxIter, residual, ScreenOutput, config);
+      IterLinSol = Smoother_LinSolver(*LinSysRes_ptr, *LinSysSol_ptr, mat_vec, *precond, SolverTol, MaxIter, Residual, ScreenOutput, config);
       break;
     case PASTIX_LDLT : case PASTIX_LU:
       if (directCall) Jacobian.BuildPastixPreconditioner(geometry, config, KindSolver);
       Jacobian.ComputePastixPreconditioner(*LinSysRes_ptr, *LinSysSol_ptr, geometry, config);
       IterLinSol = 1;
-      residual = 1e-20;
+      Residual = 1e-20;
       break;
     default:
       SU2_MPI::Error("Unknown type of linear solver.",CURRENT_FUNCTION);
@@ -1085,10 +1070,8 @@ unsigned long CSysSolve<ScalarType>::Solve_b(CSysMatrix<ScalarType> & Jacobian, 
   delete precond;
 
   SU2_OMP_MASTER
-  {
-    Residual = residual;
-    Iterations = IterLinSol;
-  } END_SU2_OMP_MASTER
+  Iterations = IterLinSol;
+  END_SU2_OMP_MASTER
 
   return IterLinSol;
 

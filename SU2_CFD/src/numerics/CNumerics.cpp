@@ -4,14 +4,14 @@
  *        Contains methods for common tasks, e.g. compute flux
  *        Jacobians.
  * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -36,7 +36,9 @@ CNumerics::CNumerics(void) {
   Proj_Flux_Tensor  = nullptr;
 
   tau = nullptr;
-  
+
+  using_uq = false;
+
   nemo = false;
 
 }
@@ -67,7 +69,7 @@ CNumerics::CNumerics(unsigned short val_nDim, unsigned short val_nVar,
   Dissipation_ij = 1.0;
 
   /* --- Initializing variables for the UQ methodology --- */
-  sstParsedOptions = config->GetSSTParsedOptions();
+  using_uq = config->GetUsing_UQ();
   Eig_Val_Comp = config->GetEig_Val_Comp();
   uq_delta_b = config->GetUQ_Delta_B();
   uq_urlx = config->GetUQ_URLX();

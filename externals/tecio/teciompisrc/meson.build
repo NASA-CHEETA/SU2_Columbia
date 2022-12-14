@@ -12,23 +12,15 @@ if (host_machine.system() == 'windows')
   tec_cxx_flags += ['-DMSWIN']
 endif
 
-if build_machine.system() != 'windows' and meson.get_compiler('cpp').get_id() != 'intel'
-  desired_warnings = ['-Wno-misleading-indentation',
+if build_machine.system() != 'windows'
+  if meson.get_compiler('cpp').get_id() != 'intel'
+    tec_cxx_flags += ['-Wno-misleading-indentation',
                       '-Wno-uninitialized',
                       '-Wno-placement-new',
-                      '-Wno-pedantic',
-                      '-Wno-error=class-memaccess',
-                      '-Wno-class-memaccess',
-                      '-Wno-error=deprecated-copy',
-                      '-Wno-deprecated-copy',
-                      '-Wno-error=cast-function-type',
-                      '-Wno-cast-function-type']
-  foreach flag : desired_warnings
-    if meson.get_compiler('cpp').has_argument(flag)
-      tec_cxx_flags += flag
-    endif
-  endforeach
+                      '-Wno-pedantic']
+  endif
 endif
+
 
 teciompi_include = include_directories(['../', './'])
 

@@ -2,14 +2,14 @@
  * \file CSU2FileWriter.cpp
  * \brief Filewriter class SU2 native ASCII (CSV) format.
  * \author T. Albring
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -29,15 +29,13 @@
 
 const string CSU2FileWriter::fileExt = ".csv";
 
-CSU2FileWriter::CSU2FileWriter(CParallelDataSorter *valDataSorter) :
-  CFileWriter(valDataSorter, fileExt){}
+CSU2FileWriter::CSU2FileWriter(string valFileName, CParallelDataSorter *valDataSorter) :
+  CFileWriter(std::move(valFileName), valDataSorter, fileExt){}
 
-void CSU2FileWriter::Write_Data(string val_filename){
+void CSU2FileWriter::Write_Data(){
 
   ofstream restart_file;
   const vector<string> fieldNames = dataSorter->GetFieldNames();
-  /*--- We append the pre-defined suffix (extension) to the filename (prefix) ---*/
-  val_filename.append(fileExt);
 
   /*--- Set a timer for the file writing. ---*/
 
@@ -46,7 +44,7 @@ void CSU2FileWriter::Write_Data(string val_filename){
   /*--- Only the FIRST node writes the header (it does not matter if that is the master). ---*/
 
   if (rank == 0) {
-    restart_file.open(val_filename);
+    restart_file.open(fileName);
     restart_file << "\"PointID\"";
     for (auto& field : fieldNames) restart_file << ",\"" << field << "\"";
     restart_file << "\n";
@@ -57,7 +55,7 @@ void CSU2FileWriter::Write_Data(string val_filename){
 
   for (int iProcessor = 0; iProcessor < size; iProcessor++) {
     if (rank == iProcessor) {
-      restart_file.open(val_filename, ios::app);
+      restart_file.open(fileName, ios::app);
       restart_file.precision(15);
 
       for (auto iPoint = 0ul; iPoint < dataSorter->GetnPoints(); iPoint++) {
@@ -89,7 +87,7 @@ void CSU2FileWriter::Write_Data(string val_filename){
 
   /*--- Determine the file size ---*/
 
-  fileSize = Determine_Filesize(val_filename);
+  fileSize = Determine_Filesize(fileName);
 
   /*--- Compute and store the bandwidth ---*/
 

@@ -2,14 +2,14 @@
  * \file CVertexMPI.cpp
  * \brief Main classes for defining the primal grid elements
  * \author F. Palacios
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -27,17 +27,29 @@
 
 #include "../../../include/geometry/primal_grid/CVertexMPI.hpp"
 
-constexpr unsigned short CVertexMPIConnectivity::nNodesFace[1];
-constexpr unsigned short CVertexMPIConnectivity::Faces[1][1];
-constexpr unsigned short CVertexMPIConnectivity::nNeighbor_Nodes[1];
-constexpr unsigned short CVertexMPIConnectivity::Neighbor_Nodes[1][1];
+unsigned short CVertexMPI::nFaces = 0;
 
-CVertexMPI::CVertexMPI(unsigned long val_point):
-  CPrimalGridWithConnectivity<CVertexMPIConnectivity>(false)
-{
-  /*--- Define face structure of the element ---*/
+unsigned short CVertexMPI::nNodes = 1;
+
+unsigned short CVertexMPI::nNeighbor_Elements = 0;
+
+unsigned short CVertexMPI::VTK_Type = 1;
+
+unsigned short CVertexMPI::maxNodesFace = 0;
+
+CVertexMPI::CVertexMPI(unsigned long val_point, unsigned short val_nDim) : CPrimalGrid() {
+
+  nDim = val_nDim;
+
+  /*--- Allocate and define face structure of the element ---*/
+  Nodes = new unsigned long[nNodes];
   Nodes[0] = val_point;
 
   /*--- By default, no rotation in the solution ---*/
   Rotation_Type = 0;
+
 }
+
+CVertexMPI::~CVertexMPI() {}
+
+void CVertexMPI::Change_Orientation(void) { }

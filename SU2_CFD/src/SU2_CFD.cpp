@@ -1,15 +1,15 @@
 /*!
  * \file SU2_CFD.cpp
  * \brief Main file of the SU2 Computational Fluid Dynamics code
- * \author F. Palacios, T. Economon, P. Ranjan
- * \version 2.0.0 "Columbia"
+ * \author F. Palacios, T. Economon
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -44,10 +44,11 @@ int main(int argc, char *argv[]) {
   int num_threads = omp_get_max_threads();
   bool use_thread_mult = false;
   std::string filename = "default.cfg";
+    
 
   /*--- Command line parsing ---*/
 
-  CLI::App app{"SU2 v7.4.0 \"Blackbird\", The Open-Source CFD Code"};
+  CLI::App app{"SU2 v7.2.0 \"Columbia\", The Open-Source CFD Code"};
   app.add_flag("-d,--dryrun", dry_run, "Enable dry run mode.\n"
                                        "Only execute preprocessing steps using a dummy geometry.");
   app.add_option("-t,--threads", num_threads, "Number of OpenMP threads per MPI rank.");
@@ -104,21 +105,41 @@ int main(int argc, char *argv[]) {
   const bool disc_adj = config.GetDiscrete_Adjoint();
   const bool multizone = config.GetMultizone_Problem();
   const bool harmonic_balance = (config.GetTime_Marching() == TIME_MARCHING::HARMONIC_BALANCE);
-  bool Smdo = config.GetSMDO_Mode(); /* See if steady (static) MDA/O is required*/
-  bool Umdo = config.GetUMDO_Mode(); /* See if un-steady (dynamic) MDA/O is required*/
+  bool Smdo = config.GetSMDO_Mode();
+  bool Umdo = config.GetUMDO_Mode();
+
+  
+
+  
+   /*--- These are all the possible cases ---*/
+
+  /*--- Launch the main external loop of the solver. ---*/
+
+
+
+  //    driver = new CSinglezoneDriver(config_file_name, nZone, MPICommunicator);
+    
+
+  
+
+  if (Umdo )
+  {
+    driver = new CMDODriver(config_file_name, nZone, MPICommunicator);
+  }
 
   if (Smdo)
-  {   /* Launch an instance of the static MDA/O driver */
+  {
       driver = new CStaticMDODriver(config_file_name, nZone, MPICommunicator);
+     //driver = new CMDODriver(config_file_name, nZone, MPICommunicator);
+
   }
   
   else
   {
-    /* Launch an instance of the conventional CFD driver */
     driver = new CSinglezoneDriver(config_file_name, nZone, MPICommunicator);
   }
 
-  /*--- Launch the main external loop of the solver. ---*/
+  
 
   driver->StartSolver();
 

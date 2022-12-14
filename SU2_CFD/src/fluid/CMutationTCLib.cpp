@@ -2,14 +2,14 @@
  * \file CMutationTCLib.cpp
  * \brief Source of the Mutation++ 2T nonequilibrium gas model.
  * \author C. Garbacz
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -59,15 +59,8 @@ CMutationTCLib::CMutationTCLib(const CConfig* config, unsigned short val_nDim): 
 
   for(iSpecies = 0; iSpecies < nSpecies; iSpecies++) MolarMass[iSpecies] = 1000* mix->speciesMw(iSpecies); // x1000 to have Molar Mass in kg/kmol
 
-  if (mix->hasElectrons()) {
-    if (config->GetViscous()) {
-      SU2_MPI::Error("Ionization is not yet operational for a viscous flow in the NEMO solver.", CURRENT_FUNCTION);
-    } else {
-      nHeavy = nSpecies-1;
-      nEl = 1;
-    }
-  }
-  else { nHeavy = nSpecies;   nEl = 0; }
+  if (mix->hasElectrons()) { nHeavy = nSpecies-1; nEl = 1; }
+  else                     { nHeavy = nSpecies;   nEl = 0; }
 
 }
 
@@ -110,7 +103,7 @@ vector<su2double>& CMutationTCLib::GetSpeciesCvTraRot(){
 }
 
 
-vector<su2double>& CMutationTCLib::ComputeSpeciesCvVibEle(su2double val_T){
+vector<su2double>& CMutationTCLib::ComputeSpeciesCvVibEle(){
 
    mix->getCvsMass(Cv_ks.data());
 
@@ -139,9 +132,7 @@ vector<su2double>& CMutationTCLib::ComputeSpeciesEve(su2double val_T, bool vibe_
   return eves;
 }
 
-vector<su2double>& CMutationTCLib::ComputeNetProductionRates(bool implicit, const su2double *V, const su2double* eve,
-                                               const su2double* cvve, const su2double* dTdU, const su2double* dTvedU,
-                                               su2double **val_jacobian){
+vector<su2double>& CMutationTCLib::ComputeNetProductionRates(){
 
   mix->netProductionRates(ws.data());
 
@@ -185,7 +176,7 @@ vector<su2double>& CMutationTCLib::GetThermalConductivities(){
   return ThermalConductivities;
 }
 
-vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rhos, su2double rhoE, su2double rhoEve, su2double rhoEvel, su2double Tve_old){
+vector<su2double>& CMutationTCLib::ComputeTemperatures(vector<su2double>& val_rhos, su2double rhoE, su2double rhoEve, su2double rhoEvel){
 
   rhos = val_rhos;
 

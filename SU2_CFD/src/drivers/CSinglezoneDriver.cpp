@@ -2,14 +2,14 @@
  * \file driver_direct_singlezone.cpp
  * \brief The main subroutines for driving single-zone problems.
  * \author R. Sanchez
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -30,6 +30,10 @@
 #include "../../include/output/COutput.hpp"
 #include "../../include/iteration/CIteration.hpp"
 
+#include "../../include/precice.hpp"
+
+
+
 CSinglezoneDriver::CSinglezoneDriver(char* confFile,
                        unsigned short val_nZone,
                        SU2_Comm MPICommunicator) : CDriver(confFile,
@@ -45,31 +49,46 @@ CSinglezoneDriver::~CSinglezoneDriver(void) {
 
 }
 
-void CSinglezoneDriver::StartSolver() {
+void CSinglezoneDriver::StartSolver() 
+{
 
   StartTime = SU2_MPI::Wtime();
 
   config_container[ZONE_0]->Set_StartTime(StartTime);
+
+  /*---See if static MDO is required ---*/
+  bool enable_mdo = config_container[ZONE_0]->GetSMDO_Mode();
 
   /*--- Main external loop of the solver. Runs for the number of time steps required. ---*/
 
   if (rank == MASTER_NODE)
     cout << endl <<"------------------------------ Begin Solver -----------------------------" << endl;
 
-  if (rank == MASTER_NODE){
+  if (rank == MASTER_NODE)
+  {
     cout << endl <<"Simulation Run using the Single-zone Driver" << endl;
     if (driver_config->GetTime_Domain())
-      cout << "The simulation will run for "
-           << driver_config->GetnTime_Iter() - config_container[ZONE_0]->GetRestart_Iter() << " time steps." << endl;
+    {
+        cout << "The simulation will run for "
+            << driver_config->GetnTime_Iter() - config_container[ZONE_0]->GetRestart_Iter() << " time steps." << endl;
+    }
+
+    if (enable_mdo)
+    {
+      std::cout << "Running steady-state aero-elastic simulation" << std::endl;
+    }   
   }
+
+
+  
 
   /*--- Set the initial time iteration to the restart iteration. ---*/
   if (config_container[ZONE_0]->GetRestart() && driver_config->GetTime_Domain())
     TimeIter = config_container[ZONE_0]->GetRestart_Iter();
-
-  /*--- Run the problem until the number of time iterations required is reached. ---*/
-  while ( TimeIter < config_container[ZONE_0]->GetnTime_Iter() ) {
-
+  
+  while (TimeIter < config_container[ZONE_0]->GetnTime_Iter())
+  /*--- Run the problem until the number of time iterations required is reached. ---*/  
+  {
     /*--- Perform some preprocessing before starting the time-step simulation. ---*/
 
     Preprocess(TimeIter);
@@ -87,15 +106,16 @@ void CSinglezoneDriver::StartSolver() {
     Update();
 
     /*--- Monitor the computations after each iteration. ---*/
-
+      
     Monitor(TimeIter);
 
     /*--- Output the solution in files. ---*/
 
     Output(TimeIter);
-
+    
     /*--- Save iteration solution for libROM ---*/
-    if (config_container[MESH_0]->GetSave_libROM()) {
+    if (config_container[MESH_0]->GetSave_libROM()) 
+    {
       solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL]->SavelibROM(geometry_container[ZONE_0][INST_0][MESH_0],
                                                                      config_container[ZONE_0], StopCalc);
     }
@@ -168,6 +188,8 @@ void CSinglezoneDriver::Run() {
 
 }
 
+
+
 void CSinglezoneDriver::Postprocess() {
 
   iteration_container[ZONE_0][INST_0]->Postprocess(output_container[ZONE_0], integration_container, geometry_container, solver_container,
@@ -213,9 +235,9 @@ void CSinglezoneDriver::Output(unsigned long TimeIter) {
     BandwidthSum = config_container[ZONE_0]->GetRestart_Bandwidth_Agg();
 
     StartTime = SU2_MPI::Wtime();
-  }
 
-  config_container[ZONE_0]->Set_StartTime(StartTime);
+    config_container[ZONE_0]->Set_StartTime(StartTime);
+  }
 }
 
 void CSinglezoneDriver::DynamicMeshUpdate(unsigned long TimeIter) {

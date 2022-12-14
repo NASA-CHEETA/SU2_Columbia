@@ -2,14 +2,14 @@
  * \file CFluidModel.hpp
  * \brief Defines the main fluid model class for thermophysical properties.
  * \author S. Vitale, G. Gori, M. Pini, A. Guardone, P. Colonna, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -120,25 +120,9 @@ class CFluidModel {
   su2double GetCv() const { return Cv; }
 
   /*!
-   * \brief Compute and return fluid mean molecular weight in kg/mol.
-   */
-  template <class Vector_t>
-  static su2double ComputeMeanMolecularWeight(const Vector_t& molar_masses, const su2double* val_scalars) {
-    su2double OneOverMeanMolecularWeight = 0.0;
-    su2double val_scalars_sum = 0.0;
-
-    for (size_t i_scalar = 0; i_scalar < molar_masses.size() - 1; i_scalar++) {
-      OneOverMeanMolecularWeight += val_scalars[i_scalar] / (molar_masses[i_scalar] / 1000);
-      val_scalars_sum += val_scalars[i_scalar];
-    }
-    OneOverMeanMolecularWeight += (1 - val_scalars_sum) / (molar_masses[molar_masses.size() - 1] / 1000);
-    return 1 / OneOverMeanMolecularWeight;
-  }
-
-  /*!
    * \brief Get fluid dynamic viscosity.
    */
-  inline su2double GetLaminarViscosity() {
+  su2double GetLaminarViscosity() {
     LaminarViscosity->SetViscosity(Temperature, Density);
     Mu = LaminarViscosity->GetViscosity();
     LaminarViscosity->SetDerViscosity(Temperature, Density);
@@ -151,7 +135,7 @@ class CFluidModel {
    * \brief Get fluid thermal conductivity.
    */
 
-  inline su2double GetThermalConductivity() {
+  su2double GetThermalConductivity() {
     ThermalConductivity->SetConductivity(Temperature, Density, Mu, Mu_Turb, Cp);
     Kt = ThermalConductivity->GetConductivity();
     ThermalConductivity->SetDerConductivity(Temperature, Density, dmudrho_T, dmudT_rho, Cp);
@@ -307,10 +291,11 @@ class CFluidModel {
    * \brief Virtual member.
    * \param[in] T - Temperature value at the point.
    */
-  virtual void SetTDState_T(su2double val_Temperature, const su2double* val_scalars = nullptr) {}
+  virtual void SetTDState_T(su2double val_Temperature) {}
 
   /*!
    * \brief Set fluid eddy viscosity provided by a turbulence model needed for computing effective thermal conductivity.
    */
   void SetEddyViscosity(su2double val_Mu_Turb) { Mu_Turb = val_Mu_Turb; }
+
 };

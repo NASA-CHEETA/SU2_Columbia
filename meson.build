@@ -1,14 +1,10 @@
 project('SU2', 'c', 'cpp',
-        version: '2.2.0 "Columbia"',
+        version: '7.2.0 "Columbia"',
         license: 'LGPL2',
-        default_options: ['buildtype=custom',
+        default_options: ['buildtype=release',
                           'warning_level=0',
-                          'c_std=c99',
                           'cpp_std=c++11'])
 
-if meson.version() != '0.61.1'
-  error('SU2 must be configured with the extended Meson script (./meson.py) in the SU2 root directory.')
-endif
 
 pymod = import('python')
 python = pymod.find_installation()
@@ -21,21 +17,8 @@ if build_machine.system() != 'windows'
   if meson.get_compiler('cpp').get_id() != 'intel'
     default_warning_flags += ['-Wno-empty-body']
   endif
-  desired_warnings = ['-Wno-unused-parameter',
-                      '-Wno-deprecated-declarations',
-                      '-Wno-error=cast-function-type',
-                      '-Wno-cast-function-type',
-                      '-Wno-error=stringop-truncation',
-                      '-Wno-stringop-truncation',
-                      '-Wno-error=missing-field-initializers',
-                      '-Wno-missing-field-initializers',
-                      '-Wno-error=class-memaccess',
-                      '-Wno-class-memaccess']
-  foreach flag : desired_warnings
-    if meson.get_compiler('cpp').has_argument(flag)
-      default_warning_flags += flag
-    endif
-  endforeach
+  default_warning_flags += ['-Wno-unused-parameter',
+                            '-Wno-deprecated-declarations']
 
   if get_option('enable-autodiff') or get_option('enable-directdiff')
     default_warning_flags += ['-Wno-non-virtual-dtor']
@@ -174,6 +157,13 @@ if get_option('enable-pastix')
   su2_deps += pastix_dep
 endif
 
+
+
+
+
+  
+
+
 # blas-type dependencies
 if get_option('enable-mkl')
 
@@ -208,21 +198,30 @@ if get_option('enable-librom')
    su2_cpp_args += '-DHAVE_LIBROM'
 
    librom_root = get_option('librom_root')
-   librom_dep = declare_dependency(include_directories: librom_root+'/lib',
+   librom_dep = declare_dependency(include_directories: librom_root,
                                    link_args: ['-L'+librom_root+'/build', '-lROM'])
 
    su2_deps += librom_dep
 
 endif
 
-# MDA/O dependencies
+
+# MDO dependencies
+
 if get_option('enable-mdo')
   mdo_dep = dependency('libprecice', required: true, version : '>=2', method : 'pkg-config')
+  #mdo_dep = dependency('libprecice', required: true, version : '>=2', method : 'cmake')  
+  #if not mdo_dep.found()
+  #mdo_root = get_option('mdo_root')
+  #mdo_root = /home/prateek/Software/PreCICE
+  #my_inc = include_directories(/home/prateek/Software/PreCICE/include)
+  #my_lib = static_library(/home/prateek/Software/PreCICE/lib)
+  #mdo_dep = declare_dependency(link_with : my_lib, include_directories : my_inc)
+  #mdo_dep = declare_dependency(include_directories: mdo_root+'/include', link_with: ['-L'+mdo_root+'lib/', '-lprecice'])
+  #endif
   su2_deps += mdo_dep
+  #su2_deps += dependency('libprecice', required: true, version : '>=2', method : 'pkg-config') 
 endif
-
-mel_dep = declare_dependency(include_directories: 'externals/mel')
-su2_deps += mel_dep
 
 extra_deps = get_option('extra-deps').split(',')
 foreach dep : extra_deps
@@ -272,7 +271,7 @@ endif
 
 message('''-------------------------------------------------------------------------
          |    ___ _   _ ___                                                      |
-         |   / __| | | |_  )   Release 7.4.0 "Blackbird"                         |
+         |   / __| | | |_  )   Release 7.2.0 "Columbia"                          |
          |   \__ \ |_| |/ /                                                      |
          |   |___/\___//___|   Meson Configuration Summary                       |
          |                                                                       |
@@ -290,7 +289,6 @@ message('''---------------------------------------------------------------------
          PaStiX:         @9@
          Mixed Float:    @10@
          libROM:         @11@
-         MDA/O:          @12@
 
          Please be sure to add the $SU2_HOME and $SU2_RUN environment variables,
          and update your $PATH (and $PYTHONPATH if applicable) with $SU2_RUN
@@ -302,10 +300,10 @@ message('''---------------------------------------------------------------------
          export PATH=$PATH:$SU2_RUN
          export PYTHONPATH=$PYTHONPATH:$SU2_RUN
 
-         Use './ninja -C build install' to compile and install SU2
+         Use './ninja -C @12@ install' to compile and install SU2
 '''.format(get_option('prefix')+'/bin', meson.source_root(), get_option('enable-tecio'), get_option('enable-cgns'),
            get_option('enable-autodiff'), get_option('enable-directdiff'), get_option('enable-pywrapper'), get_option('enable-mkl'),
-           get_option('enable-openblas'), get_option('enable-pastix'), get_option('enable-mixedprec'), get_option('enable-librom'),get_option('enable-mdo'), meson.build_root().split('/')[-1]))
+           get_option('enable-openblas'), get_option('enable-pastix'), get_option('enable-mixedprec'), get_option('enable-librom'), get_option('enable-mdo'),  meson.build_root().split('/')[-1]))
 
 if get_option('enable-mpp')
   message(''' To run SU2 with Mutation++ library, add these lines to your .bashrc file:
@@ -323,8 +321,4 @@ if get_option('enable-librom')
           
           '''.format(get_option('librom_root')))
 
-endif
-
-if get_option('enable-pywrapper') and get_option('enable-cgns') and not get_option('static-cgns-deps')
-  message(''' WARNING: If compilation fails with a message regarding "attempted static link of dynamic object", reconfigure with option -Dstatic-cgns-deps=true.''')
 endif

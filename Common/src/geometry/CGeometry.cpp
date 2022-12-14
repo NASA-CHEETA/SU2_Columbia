@@ -2,14 +2,14 @@
  * \file CGeometry.cpp
  * \brief Implementation of the base geometry class.
  * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -39,7 +39,7 @@ CGeometry::CGeometry(void) :
 
 CGeometry::~CGeometry(void) {
 
-  unsigned long iElem, iElem_Bound, iVertex;
+  unsigned long iElem, iElem_Bound, iFace, iVertex;
   unsigned short iMarker;
 
   if (elem != nullptr) {
@@ -56,6 +56,12 @@ CGeometry::~CGeometry(void) {
       delete [] bound[iMarker];
     }
     delete [] bound;
+  }
+
+  if (face != nullptr) {
+    for (iFace = 0; iFace < nFace; iFace ++)
+      delete face[iFace];
+    delete[] face;
   }
 
   delete nodes;
@@ -357,7 +363,8 @@ void CGeometry::AllocateP2PComms(unsigned short countPerPoint) {
 
   if (countPerPoint <= maxCountPerPoint) return;
 
-  BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS {
+  SU2_OMP_BARRIER
+  SU2_OMP_MASTER {
 
   /*--- Store the larger packet size to the class data. ---*/
 
@@ -378,7 +385,8 @@ void CGeometry::AllocateP2PComms(unsigned short countPerPoint) {
   bufS_P2PRecv = new unsigned short[maxCountPerPoint*nPoint_P2PRecv[nP2PRecv]] ();
 
   }
-  END_SU2_OMP_SAFE_GLOBAL_ACCESS
+  END_SU2_OMP_MASTER
+  SU2_OMP_BARRIER
 
 }
 
@@ -761,7 +769,10 @@ void CGeometry::CompleteComms(CGeometry *geometry,
     /*--- For efficiency, recv the messages dynamically based on
      the order they arrive. ---*/
 
-    SU2_OMP_SAFE_GLOBAL_ACCESS(SU2_MPI::Waitany(nP2PRecv, req_P2PRecv, &ind, &status);)
+    SU2_OMP_MASTER
+    SU2_MPI::Waitany(nP2PRecv, req_P2PRecv, &ind, &status);
+    END_SU2_OMP_MASTER
+    SU2_OMP_BARRIER
 
     /*--- Once we have recv'd a message, get the source rank. ---*/
 
@@ -826,8 +837,12 @@ void CGeometry::CompleteComms(CGeometry *geometry,
    data in the loop above at this point. ---*/
 
 #ifdef HAVE_MPI
-  SU2_OMP_SAFE_GLOBAL_ACCESS(SU2_MPI::Waitall(nP2PSend, req_P2PSend, MPI_STATUS_IGNORE);)
+  SU2_OMP_MASTER
+  SU2_MPI::Waitall(nP2PSend, req_P2PSend, MPI_STATUS_IGNORE);
+  END_SU2_OMP_MASTER
 #endif
+  SU2_OMP_BARRIER
+
 }
 
 void CGeometry::PreprocessPeriodicComms(CGeometry *geometry,
@@ -1177,7 +1192,8 @@ void CGeometry::AllocatePeriodicComms(unsigned short countPerPeriodicPoint) {
 
   if (countPerPeriodicPoint <= maxCountPerPeriodicPoint) return;
 
-  BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS {
+  SU2_OMP_BARRIER
+  SU2_OMP_MASTER {
 
   /*--- Store the larger packet size to the class data. ---*/
 
@@ -1203,7 +1219,8 @@ void CGeometry::AllocatePeriodicComms(unsigned short countPerPeriodicPoint) {
   bufS_PeriodicRecv = new unsigned short[nRecv] ();
 
   }
-  END_SU2_OMP_SAFE_GLOBAL_ACCESS
+  END_SU2_OMP_MASTER
+  SU2_OMP_BARRIER
 }
 
 void CGeometry::PostPeriodicRecvs(CGeometry *geometry,
@@ -1398,7 +1415,6 @@ void CGeometry::SetEdges(void) {
       }
     }
   }
-  edges->SetPaddingNodes();
 }
 
 void CGeometry::SetFaces(void) {
@@ -1477,7 +1493,7 @@ void CGeometry::TestGeometry(void) const {
 }
 
 bool CGeometry::SegmentIntersectsPlane(const su2double *Segment_P0, const su2double *Segment_P1, su2double Variable_P0, su2double Variable_P1,
-                                       const su2double *Plane_P0, const su2double *Plane_Normal, su2double *Intersection, su2double &Variable_Interp) {
+                                                           const su2double *Plane_P0, const su2double *Plane_Normal, su2double *Intersection, su2double &Variable_Interp) {
   su2double u[3], v[3], Denominator, Numerator, Aux, ModU;
   su2double epsilon = 1E-6; // An epsilon is added to eliminate, as much as possible, the posibility of a line that intersects a point
   unsigned short iDim;
@@ -2420,14 +2436,12 @@ void CGeometry::UpdateGeometry(CGeometry **geometry_container, CConfig *config) 
   for (unsigned short iMesh = 1; iMesh <= config->GetnMGLevels(); iMesh++) {
     /*--- Update the control volume structures ---*/
 
-    geometry_container[iMesh]->SetControlVolume(geometry_container[iMesh-1], UPDATE);
-    geometry_container[iMesh]->SetBoundControlVolume(geometry_container[iMesh-1], UPDATE);
+    geometry_container[iMesh]->SetControlVolume(config,geometry_container[iMesh-1], UPDATE);
+    geometry_container[iMesh]->SetBoundControlVolume(config,geometry_container[iMesh-1], UPDATE);
     geometry_container[iMesh]->SetCoord(geometry_container[iMesh-1]);
 
   }
 
-  /*--- Compute the global surface areas for all markers. ---*/
-  geometry_container[MESH_0]->ComputeSurfaceAreaCfgFile(config);
 }
 
 void CGeometry::SetCustomBoundary(CConfig *config) {
@@ -2495,60 +2509,6 @@ void CGeometry::UpdateCustomBoundaryConditions(CGeometry **geometry_container, C
   }
 }
 
-void CGeometry::ComputeSurfaceAreaCfgFile(const CConfig *config) {
-  SU2_OMP_MASTER
-  {
-    const auto nMarker_Global = config->GetnMarker_CfgFile();
-    SurfaceAreaCfgFile.resize(nMarker_Global);
-    vector<su2double> LocalSurfaceArea(nMarker_Global, 0.0);
-
-    /*--- Loop over all local markers ---*/
-    for (unsigned short iMarker = 0; iMarker < nMarker; iMarker++) {
-
-      const auto Local_TagBound = config->GetMarker_All_TagBound(iMarker);
-
-      /*--- Loop over all global markers, and find the local-global pair via
-            matching unique string tags. ---*/
-      for (unsigned short iMarker_Global = 0; iMarker_Global < nMarker_Global; iMarker_Global++) {
-
-        const auto Global_TagBound = config->GetMarker_CfgFile_TagBound(iMarker_Global);
-        if (Local_TagBound == Global_TagBound) {
-
-          for(auto iVertex = 0ul; iVertex < nVertex[iMarker]; iVertex++ ) {
-
-            const auto iPoint = vertex[iMarker][iVertex]->GetNode();
-
-            if(!nodes->GetDomain(iPoint)) continue;
-
-            const auto AreaNormal = vertex[iMarker][iVertex]->GetNormal();
-            const auto Area = GeometryToolbox::Norm(nDim, AreaNormal);
-
-            LocalSurfaceArea[iMarker_Global] += Area;
-          }// for iVertex
-        }//if Local == Global
-      }//for iMarker_Global
-    }//for iMarker
-
-    SU2_MPI::Allreduce(LocalSurfaceArea.data(), SurfaceAreaCfgFile.data(), SurfaceAreaCfgFile.size(), MPI_DOUBLE, MPI_SUM, SU2_MPI::GetComm());
-  } END_SU2_OMP_MASTER
-}
-
-su2double CGeometry::GetSurfaceArea(const CConfig *config, unsigned short val_marker) const {
-  /*---Find the precomputed marker surface area by local-global string-matching. ---*/
-  const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
-
-  for (unsigned short iMarker_Global = 0; iMarker_Global < config->GetnMarker_CfgFile(); iMarker_Global++) {
-
-    const auto Global_TagBound = config->GetMarker_CfgFile_TagBound(iMarker_Global);
-
-    if (Marker_Tag == Global_TagBound)
-      return SurfaceAreaCfgFile[iMarker_Global];
-
-  }
-
-  SU2_MPI::Error("Unable to match local-marker with cfg-marker for Surface Area.", CURRENT_FUNCTION);
-  return 0.0;
-}
 
 void CGeometry::ComputeSurf_Straightness(CConfig *config,
                                          bool    print_on_screen) {
@@ -2590,7 +2550,8 @@ void CGeometry::ComputeSurf_Straightness(CConfig *config,
           other GridMovements are rigid. ---*/
     if ((config->GetMarker_All_KindBC(iMarker) == SYMMETRY_PLANE ||
          config->GetMarker_All_KindBC(iMarker) == EULER_WALL) &&
-         !config->GetMarker_Moving_Bool(Local_TagBound)) {
+        config->GetMarker_Moving_Bool(Local_TagBound) == false &&
+        config->GetKind_GridMovement() != ELASTICITY) {
 
       /*--- Loop over all global markers, and find the local-global pair via
             matching unique string tags. ---*/
@@ -3126,7 +3087,7 @@ void CGeometry::FilterValuesAtElementCG(const vector<su2double> &filter_radius,
   END_SU2_OMP_FOR
 
   /*--- Share with all processors ---*/
-  BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
+  SU2_OMP_MASTER
   {
     su2double* dbl_buffer = new su2double [Global_nElemDomain*nDim];
     SU2_MPI::Allreduce(cg_elem,dbl_buffer,Global_nElemDomain*nDim,MPI_DOUBLE,MPI_SUM,SU2_MPI::GetComm());
@@ -3140,7 +3101,8 @@ void CGeometry::FilterValuesAtElementCG(const vector<su2double> &filter_radius,
     MPI_Allreduce(halo_detect.data(),char_buffer.data(),Global_nElemDomain,MPI_CHAR,MPI_SUM,SU2_MPI::GetComm());
     halo_detect.swap(char_buffer);
   }
-  END_SU2_OMP_SAFE_GLOBAL_ACCESS
+  END_SU2_OMP_MASTER
+  SU2_OMP_BARRIER
 
   SU2_OMP_FOR_STAT(256)
   for(auto iElem=0ul; iElem<Global_nElemDomain; ++iElem) {
@@ -3179,13 +3141,14 @@ void CGeometry::FilterValuesAtElementCG(const vector<su2double> &filter_radius,
 
 #ifdef HAVE_MPI
     /*--- Share with all processors ---*/
-    BEGIN_SU2_OMP_SAFE_GLOBAL_ACCESS
+    SU2_OMP_MASTER
     {
       su2double *buffer = new su2double [Global_nElemDomain];
       SU2_MPI::Allreduce(work_values,buffer,Global_nElemDomain,MPI_DOUBLE,MPI_SUM,SU2_MPI::GetComm());
       swap(buffer, work_values); delete [] buffer;
     }
-    END_SU2_OMP_SAFE_GLOBAL_ACCESS
+    END_SU2_OMP_MASTER
+    SU2_OMP_BARRIER
 
     /*--- Account for duplication ---*/
     SU2_OMP_FOR_STAT(256)
@@ -3501,16 +3464,14 @@ void CGeometry::SetRotationalVelocity(const CConfig *config, bool print) {
   unsigned long iPoint;
   unsigned short iDim;
 
-  su2double GridVel[3] = {0.0,0.0,0.0}, Distance[3] = {0.0,0.0,0.0},
-            Center[3] = {0.0,0.0,0.0}, Omega[3] = {0.0,0.0,0.0},
-            xDot[3] = {0.0,0.0,0.0};
+  su2double RotVel[3] = {0.0,0.0,0.0}, Distance[3] = {0.0,0.0,0.0},
+            Center[3] = {0.0,0.0,0.0}, Omega[3] = {0.0,0.0,0.0};
 
   /*--- Center of rotation & angular velocity vector from config ---*/
 
   for (iDim = 0; iDim < 3; iDim++) {
     Center[iDim] = config->GetMotion_Origin(iDim);
     Omega[iDim]  = config->GetRotation_Rate(iDim)/config->GetOmega_Ref();
-    xDot[iDim] = config->GetTranslation_Rate(iDim)/config->GetVelocity_Ref();
   }
 
   su2double L_Ref = config->GetLength_Ref();
@@ -3522,11 +3483,9 @@ void CGeometry::SetRotationalVelocity(const CConfig *config, bool print) {
     cout << ", " << Center[2] << " )\n";
     cout << " Angular velocity about x, y, z axes: ( " << Omega[0] << ", ";
     cout << Omega[1] << ", " << Omega[2] << " ) rad/s" << endl;
-    cout << " Translational velocity in x, y, z direction: ("
-         << xDot[0] << ", " << xDot[1] << ", " << xDot[2] << ")." << endl;
   }
 
-  /*--- Loop over all nodes and set the rotational and translational velocity ---*/
+  /*--- Loop over all nodes and set the rotational velocity ---*/
 
   for (iPoint = 0; iPoint < nPoint; iPoint++) {
 
@@ -3539,15 +3498,15 @@ void CGeometry::SetRotationalVelocity(const CConfig *config, bool print) {
     for (iDim = 0; iDim < nDim; iDim++)
       Distance[iDim] = (Coord[iDim]-Center[iDim])/L_Ref;
 
-    /*--- Calculate the angular velocity as omega X r and add translational velocity ---*/
+    /*--- Calculate the angular velocity as omega X r ---*/
 
-    GridVel[0] = Omega[1]*(Distance[2]) - Omega[2]*(Distance[1]) + xDot[0];
-    GridVel[1] = Omega[2]*(Distance[0]) - Omega[0]*(Distance[2]) + xDot[1];
-    GridVel[2] = Omega[0]*(Distance[1]) - Omega[1]*(Distance[0]) + xDot[2];
+    RotVel[0] = Omega[1]*(Distance[2]) - Omega[2]*(Distance[1]);
+    RotVel[1] = Omega[2]*(Distance[0]) - Omega[0]*(Distance[2]);
+    RotVel[2] = Omega[0]*(Distance[1]) - Omega[1]*(Distance[0]);
 
     /*--- Store the grid velocity at this node ---*/
 
-    nodes->SetGridVel(iPoint, GridVel);
+    nodes->SetGridVel(iPoint, RotVel);
 
   }
 
@@ -3870,13 +3829,13 @@ void CGeometry::ComputeWallDistance(const CConfig* const* config_container, CGeo
 
       /*--- Check if a zone needs the wall distance and store a boolean ---*/
 
-      MAIN_SOLVER kindSolver = config_container[iZone]->GetKind_Solver();
-      if (kindSolver == MAIN_SOLVER::RANS ||
-          kindSolver == MAIN_SOLVER::INC_RANS ||
-          kindSolver == MAIN_SOLVER::DISC_ADJ_RANS ||
-          kindSolver == MAIN_SOLVER::DISC_ADJ_INC_RANS ||
-          kindSolver == MAIN_SOLVER::FEM_LES ||
-          kindSolver == MAIN_SOLVER::FEM_RANS){
+      ENUM_MAIN_SOLVER kindSolver = static_cast<ENUM_MAIN_SOLVER>(config_container[iZone]->GetKind_Solver());
+      if (kindSolver == RANS ||
+          kindSolver == INC_RANS ||
+          kindSolver == DISC_ADJ_RANS ||
+          kindSolver == DISC_ADJ_INC_RANS ||
+          kindSolver == FEM_LES ||
+          kindSolver == FEM_RANS){
         wallDistanceNeeded[iZone] = true;
       }
 

@@ -482,7 +482,7 @@ static void ADFI_convert_integers(
 	}
     }
     else {
-        memcpy(to_data, from_data, (size_t)size * (size_t)count);
+        memcpy(to_data, from_data, size * count);
     }
 }
 /*------------------------------------------------------------------------------------*/

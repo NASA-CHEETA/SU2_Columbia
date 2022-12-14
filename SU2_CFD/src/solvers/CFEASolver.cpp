@@ -2,14 +2,14 @@
  * \file CFEASolver.cpp
  * \brief Main subroutines for solving direct FEM elasticity problems.
  * \author R. Sanchez
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -31,15 +31,28 @@
 #include "../../../Common/include/toolboxes/printing_toolbox.hpp"
 #include "../../../Common/include/toolboxes/geometry_toolbox.hpp"
 #include <algorithm>
+#include <unordered_set>
+#include <unordered_map>
 
 using namespace GeometryToolbox;
 
 
-CFEASolver::CFEASolver(LINEAR_SOLVER_MODE mesh_deform_mode) : CFEASolverBase(mesh_deform_mode) {
+CFEASolver::CFEASolver(bool mesh_deform_mode) : CSolver(mesh_deform_mode) {
+
+  nElement = 0;
+  nDim = 0;
+  nMarker = 0;
+
+  nPoint = 0;
+  nPointDomain = 0;
 
   Total_CFEA = 0.0;
   WAitken_Dyn = 0.0;
   WAitken_Dyn_tn1 = 0.0;
+
+  element_container = new CElement** [MAX_TERMS]();
+  for (unsigned short iTerm = 0; iTerm < MAX_TERMS; iTerm++)
+    element_container[iTerm] = new CElement* [MAX_FE_KINDS*omp_get_max_threads()]();
 
   topol_filter_applied = false;
   element_based = false;
@@ -47,7 +60,7 @@ CFEASolver::CFEASolver(LINEAR_SOLVER_MODE mesh_deform_mode) : CFEASolverBase(mes
 
 }
 
-CFEASolver::CFEASolver(CGeometry *geometry, CConfig *config) : CFEASolverBase(geometry, config) {
+CFEASolver::CFEASolver(CGeometry *geometry, CConfig *config) : CSolver() {
 
   bool dynamic = (config->GetTime_Domain());
 
@@ -59,7 +72,19 @@ CFEASolver::CFEASolver(CGeometry *geometry, CConfig *config) : CFEASolverBase(ge
   topol_filter_applied = false;
   initial_calc = true;
 
+  nElement      = geometry->GetnElem();
+  nDim          = geometry->GetnDim();
+  nMarker       = geometry->GetnMarker();
+
+  nPoint        = geometry->GetnPoint();
+  nPointDomain  = geometry->GetnPointDomain();
+
   /*--- Here is where we assign the kind of each element ---*/
+
+  /*--- First level: different possible terms of the equations ---*/
+  element_container = new CElement** [MAX_TERMS]();
+  for (unsigned short iTerm = 0; iTerm < MAX_TERMS; iTerm++)
+    element_container[iTerm] = new CElement* [MAX_FE_KINDS*omp_get_max_threads()]();
 
   SU2_OMP_PARALLEL
   {
@@ -217,6 +242,16 @@ CFEASolver::CFEASolver(CGeometry *geometry, CConfig *config) : CFEASolverBase(ge
 
 CFEASolver::~CFEASolver(void) {
 
+  if (element_container != nullptr) {
+    for (unsigned int iVar = 0; iVar < MAX_TERMS; iVar++) {
+      for (unsigned int jVar = 0; jVar < MAX_FE_KINDS*omp_get_max_threads(); jVar++) {
+        delete element_container[iVar][jVar];
+      }
+      delete [] element_container[iVar];
+    }
+    delete [] element_container;
+  }
+
   if (element_properties != nullptr) {
     for (unsigned long iElem = 0; iElem < nElement; iElem++)
       delete element_properties[iElem];
@@ -225,12 +260,12 @@ CFEASolver::~CFEASolver(void) {
 
   delete [] iElem_iDe;
 
+  delete nodes;
+
   if (LockStrategy) {
     for (unsigned long iPoint = 0; iPoint < nPoint; iPoint++)
       omp_destroy_lock(&UpdateLocks[iPoint]);
   }
-
-  delete nodes;
 }
 
 void CFEASolver::HybridParallelInitialization(CGeometry* geometry) {
@@ -549,7 +584,42 @@ void CFEASolver::Set_VertexEliminationSchedule(CGeometry *geometry, const vector
     }
   }
 
-  CommunicateExtraEliminationVertices(geometry, myPoints);
+  const unordered_set<unsigned long> markerPoints(myPoints.begin(), myPoints.end());
+
+  vector<unsigned long> numPoints(size);
+  unsigned long num = myPoints.size();
+  SU2_MPI::Allgather(&num, 1, MPI_UNSIGNED_LONG, numPoints.data(), 1, MPI_UNSIGNED_LONG, SU2_MPI::GetComm());
+
+  /*--- Global to local map for the halo points of the rank (not covered by the CGeometry map). ---*/
+  unordered_map<unsigned long, unsigned long> Global2Local;
+  for (auto iPoint = nPointDomain; iPoint < nPoint; ++iPoint) {
+    Global2Local[geometry->nodes->GetGlobalIndex(iPoint)] = iPoint;
+  }
+
+  /*--- Populate elimination list. ---*/
+  ExtraVerticesToEliminate.clear();
+
+  for (int i = 0; i < size; ++i) {
+    /*--- Send our point list. ---*/
+    if (rank == i) {
+      SU2_MPI::Bcast(myPoints.data(), numPoints[i], MPI_UNSIGNED_LONG, rank, SU2_MPI::GetComm());
+      continue;
+    }
+
+    /*--- Receive point list. ---*/
+    vector<unsigned long> theirPoints(numPoints[i]);
+    SU2_MPI::Bcast(theirPoints.data(), numPoints[i], MPI_UNSIGNED_LONG, i, SU2_MPI::GetComm());
+
+    for (auto iPointGlobal : theirPoints) {
+      /*--- Check if the rank has the point. ---*/
+      auto it = Global2Local.find(iPointGlobal);
+      if (it == Global2Local.end()) continue;
+
+      /*--- If the point is not covered by this rank's markers, mark it for elimination. ---*/
+      if (markerPoints.count(iPointGlobal) == 0)
+        ExtraVerticesToEliminate.push_back(it->second);
+    }
+  }
 
 }
 
@@ -557,7 +627,7 @@ void CFEASolver::Preprocessing(CGeometry *geometry, CSolver **solver_container, 
                                unsigned short iMesh, unsigned long Iteration, unsigned short RunTime_EqSystem, bool Output) {
 
   const bool dynamic = config->GetTime_Domain();
-  const bool disc_adj_fem = (config->GetKind_Solver() == MAIN_SOLVER::DISC_ADJ_FEM);
+  const bool disc_adj_fem = (config->GetKind_Solver() == DISC_ADJ_FEM);
   const bool body_forces = config->GetDeadLoad();
   const bool topology_mode = config->GetTopology_Optimization();
 
@@ -1716,17 +1786,6 @@ void CFEASolver::Postprocessing(CGeometry *geometry, CConfig *config, CNumerics 
   const bool penalty = ((kindObjFunc == REFERENCE_GEOMETRY) || (kindObjFunc == REFERENCE_NODE)) &&
                        ((config->GetDV_FEA() == YOUNG_MODULUS) || (config->GetDV_FEA() == DENSITY_VAL));
 
-  auto computeAllFunctions = [&]() {
-    /*--- Compute stresses for monitoring and output. ---*/
-    Compute_NodalStress(geometry, numerics, config);
-
-    /*--- Compute functions for monitoring and output. ---*/
-    Compute_OFRefNode(geometry, config);
-    Compute_OFCompliance(geometry, config);
-    if (config->GetRefGeom()) Compute_OFRefGeom(geometry, config);
-    if (config->GetTopology_Optimization()) Compute_OFVolFrac(geometry, config);
-  };
-
   if (of_comp_mode) {
     if (penalty) Stiffness_Penalty(geometry, numerics, config);
 
@@ -1739,17 +1798,20 @@ void CFEASolver::Postprocessing(CGeometry *geometry, CConfig *config, CNumerics 
       case STRESS_PENALTY:
         Compute_NodalStress(geometry, numerics, config);
         break;
-      case CUSTOM_OBJFUNC:
-        /*--- No easy way to know, so compute everything. ---*/
-        computeAllFunctions();
-        break;
     }
     return;
   }
 
   if (!config->GetDiscrete_Adjoint()) {
+    /*--- Compute stresses for monitoring and output. ---*/
+    Compute_NodalStress(geometry, numerics, config);
+
+    /*--- Compute functions for monitoring and output. ---*/
     if (penalty) Stiffness_Penalty(geometry, numerics, config);
-    computeAllFunctions();
+    Compute_OFRefNode(geometry, config);
+    Compute_OFCompliance(geometry, config);
+    if (config->GetRefGeom()) Compute_OFRefGeom(geometry, config);
+    if (config->GetTopology_Optimization()) Compute_OFVolFrac(geometry, config);
   }
 
   /*--- Residuals do not have to be computed while recording. ---*/
@@ -1785,23 +1847,41 @@ void CFEASolver::Postprocessing(CGeometry *geometry, CConfig *config, CNumerics 
 
     const auto ResidualAux = computeLinearResidual(Jacobian, LinSysSol, LinSysRes);
 
+    /*--- Set maximum residual to zero. ---*/
+
+    SetResToZero();
+
     SU2_OMP_PARALLEL {
 
     /*--- Compute the residual. ---*/
+
     su2double resMax[MAXNVAR] = {0.0}, resRMS[MAXNVAR] = {0.0};
+    const su2double* coordMax[MAXNVAR] = {nullptr};
     unsigned long idxMax[MAXNVAR] = {0};
 
     SU2_OMP_FOR_STAT(omp_chunk_size)
     for (auto iPoint = 0ul; iPoint < nPointDomain; iPoint++) {
       for (auto iVar = 0ul; iVar < nVar; iVar++) {
-        /*--- "Add" residual at (iPoint,iVar) to local residual variables. ---*/
-        ResidualReductions_PerThread(iPoint, iVar, ResidualAux(iPoint, iVar), resRMS, resMax, idxMax);
+        su2double Res = fabs(ResidualAux(iPoint, iVar));
+        resRMS[iVar] += Res*Res;
+        if (Res > resMax[iVar]) {
+          resMax[iVar] = Res;
+          idxMax[iVar] = iPoint;
+          coordMax[iVar] = geometry->nodes->GetCoord(iPoint);
+        }
       }
     }
     END_SU2_OMP_FOR
+    SU2_OMP_CRITICAL
+    for (auto iVar = 0ul; iVar < nVar; iVar++) {
+      Residual_RMS[iVar] += resRMS[iVar];
+      AddRes_Max(iVar, resMax[iVar], geometry->nodes->GetGlobalIndex(idxMax[iVar]), coordMax[iVar]);
+    }
+    END_SU2_OMP_CRITICAL
+    SU2_OMP_BARRIER
 
-    /*--- "Add" residuals from all threads to global residual variables. ---*/
-    ResidualReductions_FromAllThreads(geometry, config, resRMS,resMax,idxMax);
+    /*--- Compute the root mean square residual. ---*/
+    SetResidual_RMS(geometry, config);
 
     }
     END_SU2_OMP_PARALLEL

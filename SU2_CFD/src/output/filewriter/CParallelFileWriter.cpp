@@ -1,15 +1,15 @@
 /*!
- * \file CParallelFileWriter.cpp
+ * \file CFileWriter.cpp
  * \brief Filewriter base class.
  * \author T. Albring
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -27,23 +27,30 @@
 
 #include "../../../include/output/filewriter/CFileWriter.hpp"
 
-CFileWriter::CFileWriter(CParallelDataSorter *valDataSorter, string valFileExt):
+
+CFileWriter::CFileWriter(string valFileName, CParallelDataSorter *valDataSorter, string valFileExt):
   fileExt(valFileExt),
+  fileName(std::move(valFileName)),
   dataSorter(valDataSorter){
 
   rank = SU2_MPI::GetRank();
   size = SU2_MPI::GetSize();
+
+  this->fileName += valFileExt;
 
   fileSize = 0.0;
   bandwidth = 0.0;
 
 }
 
-CFileWriter::CFileWriter(string valFileExt):
-  fileExt(valFileExt){
+CFileWriter::CFileWriter(string valFileName, string valFileExt):
+  fileExt(valFileExt),
+  fileName(std::move(valFileName)){
 
   rank = SU2_MPI::GetRank();
   size = SU2_MPI::GetSize();
+
+  this->fileName += valFileExt;
 
   fileSize = 0.0;
   bandwidth = 0.0;
@@ -198,10 +205,7 @@ bool CFileWriter::WriteMPIString(const string &str, unsigned short processor){
 
 }
 
-bool CFileWriter::OpenMPIFile(string val_filename){
-
-  /*--- We append the pre-defined suffix (extension) to the filename (prefix) ---*/
-  val_filename.append(fileExt);
+bool CFileWriter::OpenMPIFile(){
 
 #ifdef HAVE_MPI
   int ierr;
@@ -212,14 +216,14 @@ bool CFileWriter::OpenMPIFile(string val_filename){
    to write a fresh output file, so we delete any existing files and create
    a new one. ---*/
 
-  ierr = MPI_File_open(SU2_MPI::GetComm(), val_filename.c_str(),
+  ierr = MPI_File_open(SU2_MPI::GetComm(), fileName.c_str(),
                        MPI_MODE_CREATE|MPI_MODE_EXCL|MPI_MODE_WRONLY,
                        MPI_INFO_NULL, &fhw);
   if (ierr != MPI_SUCCESS)  {
     MPI_File_close(&fhw);
     if (rank == 0)
-      MPI_File_delete(val_filename.c_str(), MPI_INFO_NULL);
-    ierr = MPI_File_open(SU2_MPI::GetComm(), val_filename.c_str(),
+      MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
+    ierr = MPI_File_open(SU2_MPI::GetComm(), fileName.c_str(),
                          MPI_MODE_CREATE|MPI_MODE_EXCL|MPI_MODE_WRONLY,
                          MPI_INFO_NULL, &fhw);
   }
@@ -228,15 +232,15 @@ bool CFileWriter::OpenMPIFile(string val_filename){
 
   if (ierr) {
     SU2_MPI::Error(string("Unable to open file ") +
-                   val_filename, CURRENT_FUNCTION);
+                   fileName, CURRENT_FUNCTION);
   }
 #else
-  fhw = fopen(val_filename.c_str(), "wb");
+  fhw = fopen(fileName.c_str(), "wb");
   /*--- Error check for opening the file. ---*/
 
   if (!fhw) {
     SU2_MPI::Error(string("Unable to open file ") +
-                   val_filename, CURRENT_FUNCTION);
+                   fileName, CURRENT_FUNCTION);
   }
 #endif
 

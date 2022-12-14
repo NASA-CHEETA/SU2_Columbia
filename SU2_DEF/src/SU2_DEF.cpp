@@ -2,14 +2,14 @@
  * \file SU2_DEF.cpp
  * \brief Main file of Mesh Deformation Code (SU2_DEF).
  * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -31,11 +31,14 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
+  //std::cout << " Here in SU2_DEF" <<std::endl;
   unsigned short iZone, nZone = SINGLE_ZONE;
   su2double StartTime = 0.0, StopTime = 0.0, UsedTime = 0.0;
   char config_file_name[MAX_STRING_SIZE];
   int rank, size;
   string str;
+
+
 
   /*--- MPI initialization ---*/
 
@@ -96,6 +99,8 @@ int main(int argc, char *argv[]) {
   /*--- Initialize the configuration of the driver ---*/
   driver_config = new CConfig(config_file_name, SU2_COMPONENT::SU2_DEF, false);
 
+
+
   /*--- Initialize a char to store the zone filename ---*/
   char zone_file_name[MAX_STRING_SIZE];
 
@@ -127,6 +132,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
+
   for (iZone = 0; iZone < nZone; iZone++) {
 
     /*--- Definition of the geometry class to store the primal grid in the partitioning process. ---*/
@@ -136,6 +142,7 @@ int main(int argc, char *argv[]) {
     /*--- All ranks process the grid and call ParMETIS for partitioning ---*/
 
     geometry_aux = new CPhysicalGeometry(config_container[iZone], iZone, nZone);
+
 
     /*--- Color the initial grid and set the send-receive domains (ParMETIS) ---*/
 
@@ -373,11 +380,13 @@ int main(int argc, char *argv[]) {
   /*--- Output deformed grid for visualization, if requested (surface and volumetric), in parallel
    requires to move all the data to the master node---*/
 
-  for (iZone = 0; iZone < nZone; iZone++){
+  for (iZone = 0; iZone < nZone; iZone++)
+  {
 
     /*--- Compute Mesh Quality if requested. Necessary geometry preprocessing re-done beforehand. ---*/
 
-    if (config_container[iZone]->GetWrt_MeshQuality() && !config->GetStructuralProblem()) {
+    if (config_container[iZone]->GetWrt_MeshQuality() && !config->GetStructuralProblem()) 
+    {
 
       if (rank == MASTER_NODE) cout << "Recompute geometry properties necessary to evaluate mesh quality statistics.\n";
 
@@ -390,22 +399,25 @@ int main(int argc, char *argv[]) {
 
       if (rank == MASTER_NODE) cout << "Computing mesh quality statistics for the dual control volumes.\n";
       geometry_container[iZone]->ComputeMeshQualityStatistics(config_container[iZone]);
+
     }// Mesh Quality Output
 
     /*--- Load the data --- */
 
     output[iZone]->Load_Data(geometry_container[iZone], config_container[iZone], nullptr);
 
-    output[iZone]->WriteToFile(config_container[iZone], geometry_container[iZone], OUTPUT_TYPE::MESH, config->GetMesh_Out_FileName());
+    output[iZone]->WriteToFile(config_container[iZone], geometry_container[iZone], MESH, config->GetMesh_Out_FileName());
 
     /*--- Set the file names for the visualization files ---*/
 
     output[iZone]->SetVolume_Filename("volume_deformed");
     output[iZone]->SetSurface_Filename("surface_deformed");
 
-    for (unsigned short iFile = 0; iFile < config_container[iZone]->GetnVolumeOutputFiles(); iFile++){
+    for (unsigned short iFile = 0; iFile < config_container[iZone]->GetnVolumeOutputFiles(); iFile++)
+    {
       auto FileFormat = config_container[iZone]->GetVolumeOutputFiles();
-      if (FileFormat[iFile] != OUTPUT_TYPE::RESTART_ASCII && FileFormat[iFile] != OUTPUT_TYPE::RESTART_BINARY)
+      
+      if (FileFormat[iFile] != RESTART_ASCII && FileFormat[iFile] != RESTART_BINARY)
         output[iZone]->WriteToFile(config_container[iZone], geometry_container[iZone], FileFormat[iFile]);
     }
   }
@@ -414,7 +426,8 @@ int main(int argc, char *argv[]) {
   if ((config_container[ZONE_0]->GetDesign_Variable(0) != NO_DEFORMATION) &&
       (config_container[ZONE_0]->GetDesign_Variable(0) != SCALE_GRID)     &&
       (config_container[ZONE_0]->GetDesign_Variable(0) != TRANSLATE_GRID) &&
-      (config_container[ZONE_0]->GetDesign_Variable(0) != ROTATE_GRID)) {
+      (config_container[ZONE_0]->GetDesign_Variable(0) != ROTATE_GRID)) 
+  {
 
     /*--- Write the the free-form deformation boxes after deformation. ---*/
 

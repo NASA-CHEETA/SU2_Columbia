@@ -2,14 +2,14 @@
  * \file CParaviewVTMFileWriter.hpp
  * \brief Headers fo paraview binary file writer class.
  * \author T. Albring
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -28,8 +28,6 @@
 #pragma once
 
 #include "CFileWriter.hpp"
-#include "../../../../Common/include/CConfig.hpp"
-
 
 class CParaviewVTMFileWriter final: public CFileWriter{
 
@@ -42,12 +40,6 @@ class CParaviewVTMFileWriter final: public CFileWriter{
    * \brief The folder name where all the files associated with the datasets will be stored
    */
   string folderName;
-
-
-  /*!
-   * \brief The iteration number that may be appended to the folder name
-   */
-  string iterationNumber;
 
   /*!
    * \brief The current zone index
@@ -83,12 +75,13 @@ public:
 
   /*!
    * \brief Construct a file writer using field names, dimension.
+   * \param[in] valFileName - The name of the file
    * \param[in] valFolderName - The name of the output folder
    * \param[in] valTime - The current physical time
    * \param[in] valiZone - The index of the current zone
    * \param[in] valnZone - The total number of zones
    */
-  CParaviewVTMFileWriter(su2double valTime, unsigned short valiZone, unsigned short valnZone);
+  CParaviewVTMFileWriter(string valFileName, string valFolderName, su2double valTime, unsigned short valiZone, unsigned short valnZone);
 
   /*!
    * \brief Destructor
@@ -97,25 +90,8 @@ public:
 
   /*!
    * \brief Write sorted data to file in paraview binary file format
-   * \param[in] val_filename - The name of the file
    */
-  void Write_Data(string val_filename) override;
-
-    /*!
-   * \brief Write all data of the zones, boundaries into the folder
-   * \param[in] val_foldername - The name of the file folder
-   * \param[in] config - The config options
-   * \param[in] multiZoneHeaderString
-   * \param[in] volumeDataSorter - sorted volume data
-   * \param[in] surfaceDataSorter - sorted surface data
-   * \param[in] geometry - the geometry of the problem
-   */
-  void WriteFolderData(string foldername, CConfig *config,
-                       string multiZoneHeaderString,
-                       CParallelDataSorter* volumeDataSorter,
-                       CParallelDataSorter* surfaceDataSorter,
-                       CGeometry *geometry);
-
+  void Write_Data() override;
 
   /*!
    * \brief Add a new dataset by writing data from a datasorter to file and adding it to the vtm file
@@ -123,8 +99,7 @@ public:
    * \param[in] file - The name of the vtu dataset file to write
    * \param[in] dataSorter - Datasorter object containing the actual data. Note, data must be sorted.
    */
-  //void AddDataset(string name, string file, CParallelDataSorter* dataSorter);
-  void AddDataset(string foldername, string name, string file, CParallelDataSorter* dataSorter);
+  void AddDataset(string name, string file, CParallelDataSorter* dataSorter);
 
   /*!
    * \brief Start a new block

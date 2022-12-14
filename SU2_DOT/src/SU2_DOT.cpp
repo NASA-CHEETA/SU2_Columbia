@@ -2,14 +2,14 @@
  * \file SU2_DOT.cpp
  * \brief Main file of the Gradient Projection Code (SU2_DOT).
  * \author F. Palacios, T. Economon
- * \version 7.4.0 "Blackbird"
+ * \version 7.2.0 "Blackbird"
  *
  * SU2 Project Website: https://su2code.github.io
  *
  * The SU2 Project is maintained by the SU2 Foundation
  * (http://su2foundation.org)
  *
- * Copyright 2012-2022, SU2 Contributors (cf. AUTHORS.md)
+ * Copyright 2012-2021, SU2 Contributors (cf. AUTHORS.md)
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -106,20 +106,23 @@ int main(int argc, char *argv[]) {
    cases, nZone is equal to one. This represents the solution of a partial
    differential equation on a single block, unstructured mesh. ---*/
 
-  for (iZone = 0; iZone < nZone; iZone++) {
+  for (iZone = 0; iZone < nZone; iZone++) 
+  {
 
     /*--- Definition of the configuration option class for all zones. In this
      constructor, the input configuration file is parsed and all options are
      read and stored. ---*/
 
-    if (driver_config->GetnConfigFiles() > 0){
-      strcpy(zone_file_name, driver_config->GetConfigFilename(iZone).c_str());
-      config_container[iZone] = new CConfig(driver_config, zone_file_name, SU2_COMPONENT::SU2_DOT, iZone, nZone, true);
-    }
-    else{
-      config_container[iZone] = new CConfig(driver_config, config_file_name, SU2_COMPONENT::SU2_DOT, iZone, nZone, true);
-    }
-    config_container[iZone]->SetMPICommunicator(MPICommunicator);
+      if (driver_config->GetnConfigFiles() > 0)
+        {
+          strcpy(zone_file_name, driver_config->GetConfigFilename(iZone).c_str());
+          config_container[iZone] = new CConfig(driver_config, zone_file_name, SU2_COMPONENT::SU2_DOT, iZone, nZone, true);
+        }
+      else
+      {
+        config_container[iZone] = new CConfig(driver_config, config_file_name, SU2_COMPONENT::SU2_DOT, iZone, nZone, true);
+      }
+        config_container[iZone]->SetMPICommunicator(MPICommunicator);
 
   }
 
@@ -280,13 +283,7 @@ int main(int argc, char *argv[]) {
 
       if (rank == MASTER_NODE)
         cout << "\n---------------------- Mesh sensitivity computation ---------------------" << endl;
-
-      if(config_container[iZone]->GetDiscrete_Adjoint() && config_container[iZone]->GetSmoothGradient() &&
-         config_container[iZone]->GetSobMode() == ENUM_SOBOLEV_MODUS::MESH_LEVEL) {
-        DerivativeTreatment_MeshSensitivity(geometry_container[iZone][INST_0], config_container[iZone], grid_movement[iZone]);
-      } else {
-        grid_movement[iZone]->SetVolume_Deformation(geometry_container[iZone][INST_0], config_container[iZone], false, true);
-      }
+      grid_movement[iZone]->SetVolume_Deformation(geometry_container[iZone][INST_0], config_container[iZone], false, true);
 
     }
   }
@@ -328,15 +325,11 @@ int main(int argc, char *argv[]) {
       /*--- If AD mode is enabled we can use it to compute the projection,
        *    otherwise we use finite differences. ---*/
 
-      if (config_container[iZone]->GetAD_Mode()) {
-        if (config_container[iZone]->GetSmoothGradient()) {
-          DerivativeTreatment_Gradient(geometry_container[iZone][INST_0], config_container[iZone], grid_movement[iZone], surface_movement[iZone] , Gradient);
-        } else {
-          SetProjection_AD(geometry_container[iZone][INST_0], config_container[iZone], surface_movement[iZone] , Gradient);
-        }
-      } else {
+      if (config_container[iZone]->GetAD_Mode())
+        SetProjection_AD(geometry_container[iZone][INST_0], config_container[iZone], surface_movement[iZone] , Gradient);
+      else
         SetProjection_FD(geometry_container[iZone][INST_0], config_container[iZone], surface_movement[iZone] , Gradient);
-      }
+
     }
   } // for iZone
 
@@ -620,11 +613,11 @@ void SetProjection_FD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
       surface_movement->SetParabolic(geometry, config);
     }
 
-    /*--- Design variable not implemented ---*/
+    /*--- Design variable not implement ---*/
 
     else {
       if (rank == MASTER_NODE)
-        cout << "Design Variable not implemented yet" << endl;
+        cout << "Design Variable not implement yet" << endl;
     }
 
     /*--- Load the delta change in the design variable (finite difference step). ---*/
@@ -695,6 +688,8 @@ void SetProjection_FD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
 
 }
 
+// Computes and prints the gradient information to a file hwne using discrete AD
+
 
 void SetProjection_AD(CGeometry *geometry, CConfig *config, CSurfaceMovement *surface_movement, su2double** Gradient){
 
@@ -711,7 +706,7 @@ void SetProjection_AD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
   /*--- Discrete adjoint gradient computation ---*/
 
   if (rank == MASTER_NODE)
-    cout  << endl << "Evaluate functional gradient using Algorithmic Differentiation (ZONE " << config->GetiZone() << ")." << endl;
+    cout  << endl << "Evaluate functional gradient using Reverse AD (ZONE " << config->GetiZone() << ")." << endl;
 
   /*--- Start recording of operations ---*/
 
@@ -731,6 +726,8 @@ void SetProjection_AD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
   }
 
   /*--- Call the surface deformation routine ---*/
+  // Returns Total deformation applied, which may be less than target if intersection prevention is used.
+
 
   surface_movement->SetSurface_Deformation(geometry, config);
 
@@ -762,12 +759,16 @@ void SetProjection_AD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
           }
           Area = sqrt(Area);
 
-          for (iDim = 0; iDim < nDim; iDim++){
-            if (config->GetDiscrete_Adjoint()){
+          for (iDim = 0; iDim < nDim; iDim++)
+          {
+            if (config->GetDiscrete_Adjoint())
+            {
               Sensitivity = geometry->GetSensitivity(iPoint, iDim);
-            } else {
-              Sensitivity = -Normal[iDim]*geometry->vertex[iMarker][iVertex]->GetAuxVar()/Area;
-            }
+            } 
+            else 
+              {
+                Sensitivity = -Normal[iDim]*geometry->vertex[iMarker][iVertex]->GetAuxVar()/Area;
+              }
             SU2_TYPE::SetDerivative(VarCoord[iDim], SU2_TYPE::GetValue(Sensitivity));
           }
           visited[iPoint] = true;
@@ -953,9 +954,9 @@ void SetSensitivity_Files(CGeometry ***geometry, CConfig **config, unsigned shor
 
     for (unsigned short iFile = 0; iFile < config[iZone]->GetnVolumeOutputFiles(); iFile++){
       auto FileFormat = config[iZone]->GetVolumeOutputFiles();
-      if (FileFormat[iFile] != OUTPUT_TYPE::RESTART_ASCII &&
-          FileFormat[iFile] != OUTPUT_TYPE::RESTART_BINARY &&
-          FileFormat[iFile] != OUTPUT_TYPE::CSV)
+      if (FileFormat[iFile] != RESTART_ASCII &&
+          FileFormat[iFile] != RESTART_BINARY &&
+          FileFormat[iFile] != CSV)
         output->WriteToFile(config[iZone], geometry[iZone][INST_0], FileFormat[iFile]);
     }
 
@@ -964,93 +965,6 @@ void SetSensitivity_Files(CGeometry ***geometry, CConfig **config, unsigned shor
     delete output;
     delete solver;
 
-  }
-
-}
-
-void DerivativeTreatment_MeshSensitivity(CGeometry *geometry, CConfig *config, CVolumetricMovement *grid_movement) {
-
-  int rank = SU2_MPI::GetRank();
-
-  /*--- Warning if choosen smoothing mode is unsupported.
-   * This is the default option if the user has not specified a mode in the config file. ---*/
-  if (config->GetSobMode() == ENUM_SOBOLEV_MODUS::NONE) {
-    SU2_MPI::Error("Unsupported operation modus for the Sobolev Smoothing Solver.", CURRENT_FUNCTION);
-  }
-
-  /*-- Construct the smoothing solver and numerics ---*/
-  std::unique_ptr<CSolver> solver(new CGradientSmoothingSolver(geometry, config));
-  unsigned dim = (config->GetSmoothOnSurface() ? geometry->GetnDim() - 1 : geometry->GetnDim());
-  std::unique_ptr<CNumerics> numerics(new CGradSmoothing(dim, config));
-
-  if (rank == MASTER_NODE)  cout << "Sobolev Smoothing of derivatives is active." << endl;
-
-  /*--- Apply the smoothing procedure on the mesh level. ---*/
-  if (config->GetSobMode() == ENUM_SOBOLEV_MODUS::MESH_LEVEL) {
-    if (rank == MASTER_NODE) cout << "  working on mesh level" << endl;
-
-    /*--- Work with the surface derivatives. ---*/
-    if (config->GetSmoothOnSurface()) {
-
-      /*--- Project to surface and then smooth on surface. ---*/
-      grid_movement->SetVolume_Deformation(geometry, config, false, true);
-
-      /*--- Get the sensitivities from the geometry class to work with. ---*/
-      solver->ReadSensFromGeometry(geometry);
-
-      /*--- Perform the smoothing procedure on all boundaries marked as DV marker. ---*/
-      solver->ApplyGradientSmoothingSurface(geometry, numerics.get(), config);
-
-      /*--- After appling the solver write the results back ---*/
-      solver->WriteSensToGeometry(geometry);
-
-    /*--- Work with the volume derivatives. ---*/
-    } else {
-
-      /*--- Get the sensitivities from the geometry class to work with. ---*/
-      solver->ReadSensFromGeometry(geometry);
-
-      solver->ApplyGradientSmoothingVolume(geometry, numerics.get(), config);
-
-      /*--- After appling the solver write the results back ---*/
-      solver->WriteSensToGeometry(geometry);
-
-      /*--- Projection is applied after smoothing. ---*/
-      grid_movement->SetVolume_Deformation(geometry, config, false, true);
-    }
-
-  }
-
-}
-
-void DerivativeTreatment_Gradient(CGeometry *geometry, CConfig *config, CVolumetricMovement* grid_movement, CSurfaceMovement *surface_movement, su2double** Gradient) {
-
-  int rank = SU2_MPI::GetRank();
-
-  /*--- Error if choosen smoothing mode is unsupported.
-   * This is the default option if the user has not specified a mode in the config file. ---*/
-  if (config->GetSobMode() == ENUM_SOBOLEV_MODUS::NONE) {
-    SU2_MPI::Error("Unsupported operation modus for the Sobolev Smoothing Solver.", CURRENT_FUNCTION);
-  }
-
-  /*-- Construct the smoothing solver and numerics ---*/
-  std::unique_ptr<CSolver> solver(new CGradientSmoothingSolver(geometry, config));
-  unsigned dim = (config->GetSmoothOnSurface() ? geometry->GetnDim() - 1 : geometry->GetnDim());
-  std::unique_ptr<CNumerics> numerics(new CGradSmoothing(dim, config));
-
-  if (rank == MASTER_NODE)  cout << "Sobolev Smoothing of derivatives is active." << endl;
-
-  /*--- Get the sensitivities from the geometry class to work with. ---*/
-  solver->ReadSensFromGeometry(geometry);
-
-  /*--- Apply the smoothing procedure on the DV level. ---*/
-  if (config->GetSobMode() == ENUM_SOBOLEV_MODUS::PARAM_LEVEL_COMPLETE) {
-    solver->ApplyGradientSmoothingDV(geometry, numerics.get(), surface_movement, grid_movement, config, Gradient);
-
-    /*--- If smoothing already took place on the mesh level, or none is requested, just do standard projection. ---*/
-  } else if (config->GetSobMode() == ENUM_SOBOLEV_MODUS::ONLY_GRAD ||
-             config->GetSobMode() == ENUM_SOBOLEV_MODUS::MESH_LEVEL) {
-    solver->RecordTapeAndCalculateOriginalGradient(geometry, surface_movement, grid_movement, config, Gradient);
   }
 
 }
