@@ -40,15 +40,20 @@
 import sys
 
 from .. import eval as su2eval
-from numpy import array, zeros
+from numpy import array, zeros, concatenate
 
 import pyoptsparse
+#from pyoptsparse import Optimization
+
+#from pyoptsparse import SLSQP, Optimziation
 
 from pyoptsparse import SLSQP, PSQP
 
-print(" Running pyOptSparse ....")
+
 
 def pyOptSparse_optimization(project,x0=None,xb=None,its=100,accu=1e-10, optimizer = 'SLSQP'):
+    print("Running pyOptSparse ....")
+
     """ Runs the pyOptSparse implementation of SLSQP with
         an SU2 project
 
@@ -60,29 +65,14 @@ def pyOptSparse_optimization(project,x0=None,xb=None,its=100,accu=1e-10, optimiz
             accu    - accuracy, default 1e-10
 
         Outputs:
-           result - the outputs from scipy.fmin_slsqp
+           result - the outputs from pyoptsparse
     """
-     
-    optOptions = {} 
+
+    optOptions = {}
 
     # handle input cases
     if x0 is None: x0 = []
     if xb is None: xb = []
-
-    # function handles
-    func           = obj_f
-    #f_eqcons       = con_ceq
-    #f_ieqcons      = con_cieq
-
-    # gradient handles
-#    if project.config.get('GRADIENT_METHOD','NONE') == 'NONE':
-#        fprime         = None
-#        fprime_eqcons  = None
-#        fprime_ieqcons = None
-#    else:
-    fprime         = obj_df
-#        fprime_eqcons  = con_dceq
-#        fprime_ieqcons = con_dcieq
 
     # number of design variables
     dv_size = project.config['DEFINITION_DV']['SIZE']
@@ -106,10 +96,6 @@ def pyOptSparse_optimization(project,x0=None,xb=None,its=100,accu=1e-10, optimiz
     for this_obj in obj.keys():
         obj_scale = obj_scale + [obj[this_obj]['SCALE']]
 
-
-    # optimizer summary
-    print_summary (optimizer, n_dv, obj_scale, its, accu, x0, xb)
-
     # scale accuracy
     eps = 1.0e-20
 
@@ -118,32 +104,29 @@ def pyOptSparse_optimization(project,x0=None,xb=None,its=100,accu=1e-10, optimiz
     for i in range(n_dv):
         lb[i] = xb[i][0]
         ub[i] = xb[i][1]
+    
 
-    #opt_prob = pyoptsparse.Optimization(optimizer + ' pyOpt Optimization',obj_func, use_groups=True)
+    # optimizer summary
+    print_summary(optimizer, n_dv, obj_scale, its, accu, x0, xb)
+
     opt_prob = pyoptsparse.Optimization(optimizer + ' pyOptSparse Optimization',obj_f)
-    # Define design varibales
-    opt_prob.addVarGroup('x',n_dv,'c',lower=lb[0], upper=ub[0],value=x0[0])
+    opt_prob.addVarGroup("x",n_dv,'c',lower=lb[0], upper=ub[0],value=x0[0])
     opt_prob.addObj('obj')
+    print("Lower bound: " + str(lb[0])) 
+    print("Upper bound: " + str(ub[0]))    
+    opt_prob.addConGroup("con", len(project.config.OPT_CONSTRAINT['INEQUALITY']),lower=lb[0],upper=ub[0])
 
-    #opt_prob.addConGroup('Eq', len(project.config.OPT_CONSTRAINT['EQUALITY']), 'e')
-    #opt_prob.addConGroup('Ieq', len(project.config.OPT_CONSTRAINT['INEQUALITY']), 'i')
 
-    #print (opt_prob)
+    print('Number of constraints: ' + str(len(project.config.OPT_CONSTRAINT['INEQUALITY'])))
 
     if (optimizer == 'SLSQP'):
         opt  =SLSQP(options = optOptions)
-        opt.setOption('IPRINT', -1)
+        opt.setOption('IPRINT', 1)
         opt.setOption('ACC', accu)
         opt.setOption('MAXIT', its)
-    if (optimizer == 'PSQP'):
-        opt  =PSQP()
-
-    opt.setOption('IPRINT',2)
 
     # User-defined sensitivities
     sens = obj_df
-
-
 
     ############################################
     # Call the optimizer
@@ -154,8 +137,12 @@ def pyOptSparse_optimization(project,x0=None,xb=None,its=100,accu=1e-10, optimiz
     print(sol)
 
     ############################################
-    
-    return (sol.fStar)
+
+
+
+    return 0
+
+# -------FUNCTION DEFINITIONS   
 
 def print_summary(optimizer_name, n_dv, obj_scale, its, accu, x0, xb):
   # optimizer summary
@@ -168,30 +155,46 @@ def print_summary(optimizer_name, n_dv, obj_scale, its, accu, x0, xb):
   sys.stdout.write('Lower and upper bound for each independent variable: ' + str(xb) + '\n\n')
 
 
-# Function definition for objective and constraints
-
+# FUNCTION DEFINITION FOR OBJECTIVE FUNCTION CALCULATION
 def obj_f(xdict, project):
     x = xdict["x"]
     funcs={}
-    #print("Performing forward analysis ...")
+    print("Performing forward analysis ...")
     obj_list = project.obj_f(x)
-    #print("Objective:", obj_list)
-    #print("Forward analysis complete ! ")
+    print("Forward analysis complete ! ")
     obj = 0
     for this_obj in obj_list:
         obj = obj+this_obj
-    #print("Objective :", obj)    
     funcs["obj"] = obj
+    print(obj_list)
+    #---------------------------------------#
+    print("Computing inequality constraints...")
+    iqcon_list = project.con_cieq(x)
+    print("Computed inequality constraints...")
+    iqcon = 0
+    for this_iqcon in iqcon_list:
+        print(iqcon)
+        iqcon = iqcon + this_iqcon
+    print(iqcon)
+    print(iqcon_list)
+    funcs["con"] = iqcon_list
+
+    print("Computed in equality constraints")
+    print('funcs: ' + str(funcs))
+    #ieqcons = con_cieq(x, project)
+    #g_con = concatenate([eqcons, ieqcons])
     fail = False
 
     return funcs, fail
 
+# FUNCTION DEFINITION FOR OBJECTIVE SENSITIVITY CALCULATION
 def obj_df(xdict, funcsDict, project):
+    print("I am here!")
     x = xdict["x"]
     funcsSens = {}
     funcsSens["obj"] = {}
     funcsSens["obj"]["x"] = {}
-    #print("Performing adjoint calculation ...")
+    print("Performing adjoint calculation ...")
     dobj_list = project.obj_df(x)
     dobj=[0.0]*len(dobj_list[0])
     
@@ -201,48 +204,108 @@ def obj_df(xdict, funcsDict, project):
             dobj[idv] = dobj[idv]+this_dv_dobj
             idv+=1
     dobj = array( dobj )
-    #print("Adjoint calculation complete !")
     list1 = dobj.tolist()
     funcsSens["obj"]["x"] = list1
+    print("Performed adjoint calculation!")
+
+    #---------------------------------------#
+    uncsSens = {}
+    funcsSens["con"] = {}
+    funcsSens["con"]["x"] = {}
+    print("Performing adjoint calculation for constraints ...")
+    dcon_list = project.con_dcieq(x)
+    dcon=[0.0]*len(dcon_list[0])
+    print(dcon_list)
+
+    for this_dcon in dcon_list:
+        idv=0
+        for this_dv_dcon in this_dcon:
+            dcon[idv] = dcon[idv]+this_dv_dcon
+            idv+=1
+    dcon = array( dcon )
+    list2 = dcon.tolist()
+    funcsSens["con"]["x"] = dcon_list
+    
     fail = False
-    return funcsSens, fail        
 
-# Function definition for objective and constraints' sensitivities
+    return funcsSens, fail
 
-#def obj_func(x, *args, **kwargs):
-#    project = kwargs['p1']
-#    if isinstance(x, dict):
-#        x = x['x']
-#    print ("EVAL OBJFUNC")
-#    print (x)
-#    f = obj_f(x,project)
-    #eqcons = con_ceq(x, project)
-    #ieqcons = con_cieq(x, project)
-    #g = concatenate([eqcons, ieqcons])
-#    fail = False
-#    return f, fail
-    #return f,g,fail
-
-
-#def obj_f(x,project):
-
-#    obj_list = project.obj_f(x)
-#    obj = 0
-#    for this_obj in obj_list:
-#        obj = obj+this_obj
+# FUNCTION DEFINITION FOR EQUALITY CONSTRAINT CALCULATION
+def con_ceq(x,project):
+    """ cons = con_ceq(x,project)
+        
+        Equality Constraint Functions
+        SU2 Project interface to scipy.fmin_slsqp
+        
+        su2:         ceq(x) = 0.0, list[nceq]
+        scipy_slsqp: ceq(x) = 0.0, ndarray[nceq]
+    """
     
-#    return obj
-
-#def obj_df(x,project):
-
-#    dobj_list = project.obj_df(x)
-#    dobj=[0.0]*len(dobj_list[0])
+    cons = project.con_ceq(x)
     
-#    for this_dobj in dobj_list:
-#        idv=0
-#       for this_dv_dobj in this_dobj:
-#            dobj[idv] = dobj[idv]+this_dv_dobj
-#            idv+=1
-#    dobj = array( dobj )
+    if cons: cons = array(cons)
+    else:    cons = zeros([0])
+        
+    return cons
+
+# FUNCTION DEFINITION FOR EQUALITY CONSTRAINT CALCULATION
+def con_cieq(x,project):
+    """ cons = con_cieq(x,project)
+        
+        Inequality Constraints
+        SU2 Project interface to scipy.fmin_slsqp
+        
+        su2:         cieq(x) < 0.0, list[ncieq]
+        scipy_slsqp: cieq(x) > 0.0, ndarray[ncieq]
+    """
     
-#    return dobj    
+    cons = project.con_cieq(x)
+    
+    if cons: cons = array(cons)
+    else:    cons = zeros([0])
+    
+    return cons
+
+# FUNCTION DEFINITION FOR INEQUALITY CONSTRAINT SENSITIVITY CALCULATION
+def con_dcieq(x,project):
+    """ dcons = con_dcieq(x,project)
+        
+        Inequality Constraint Gradients
+        SU2 Project interface to scipy.fmin_slsqp
+        
+        su2:         dcieq(x), list[ncieq x dim]
+        scipy_slsqp: dcieq(x), ndarray[ncieq x dim]
+    """
+    
+    dcons = project.con_dcieq(x)
+    
+    dim = project.n_dv
+    if dcons: dcons = array(dcons)
+    else:     dcons = zeros([0,dim])
+    
+    return dcons
+
+# FUNCTION DEFINITION FOR EQUALITY CONSTRAINT SENSITIVITY CALCULATION
+def con_dceq(x,project):
+    """ dcons = con_dceq(x,project)
+        
+        Equality Constraint Gradients
+        SU2 Project interface to scipy.fmin_slsqp
+        
+        su2:         dceq(x), list[nceq x dim]
+        scipy_slsqp: dceq(x), ndarray[nceq x dim]
+    """
+    
+    dcons = project.con_dceq(x)
+
+    dim = project.n_dv
+    if dcons: dcons = array(dcons)
+    else:     dcons = zeros([0,dim])
+    
+    return dcons
+
+
+
+
+
+

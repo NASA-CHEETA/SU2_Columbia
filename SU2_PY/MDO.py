@@ -161,16 +161,18 @@ def shape_optimization( filename                           ,
     #  SU2.opt.BFGS(project,x0,xb,its,accu)
     #elif optimization == 'POWELL':
     #  SU2.opt.POWELL(project,x0,xb,its,accu)
-    if optimization=='SLSQP':
-      SU2.opt.PYOPT(project,x0,xb,its,accu, 'SLSQP')
-    if optimization=='PSQP':
-      SU2.opt.PYOPT(project,x0,xb,its,accu, 'PSQP')
-    if optimization=='CONMIN':
-      SU2.opt.PYOPT(project,x0,xb,its,accu, 'CONMIN')
-    if optimization=='MMA':
-      SU2.opt.PYOPT(project,x0,xb,its,accu, 'MMA')
-    if optimization=='GCMMA':
-      SU2.opt.PYOPT(project,x0,xb,its,accu, 'GCMMA')
+
+    #if optimization=='SLSQP':
+    #  SU2.opt.PYOPT(project,x0,xb,its,accu, 'SLSQP')
+    #if optimization=='PSQP':
+    #  SU2.opt.PYOPT(project,x0,xb,its,accu, 'PSQP')
+    #if optimization=='CONMIN':
+    #  SU2.opt.PYOPT(project,x0,xb,its,accu, 'CONMIN')
+    #if optimization=='MMA':
+    #  SU2.opt.PYOPT(project,x0,xb,its,accu, 'MMA')
+    #if optimization=='GCMMA':
+    #  SU2.opt.PYOPT(project,x0,xb,its,accu, 'GCMMA')
+
     #elif optimization=='SNOPT':
       #print (" NOTE: pyopt_snopt requires installation of pyopt, snopt, and their dependencies.")
       #SU2.opt.PYOPT(project,x0,xb,its,accu, 'SNOPT')
@@ -183,6 +185,7 @@ def shape_optimization( filename                           ,
     #else:
       #SU2.opt.SLSQP(project,x0,xb,its,accu)
 
+    SU2.opt.PYOPTSPRS(project,x0,xb,its,accu, 'SLSQP')
     # rename project file
     if projectname:
         shutil.move('project.pkl',projectname)
