@@ -112,12 +112,8 @@ def pyOptSparse_optimization(project,x0=None,xb=None,its=100,accu=1e-10, optimiz
     opt_prob = pyoptsparse.Optimization(optimizer + ' pyOptSparse Optimization',obj_f)
     opt_prob.addVarGroup("x",n_dv,'c',lower=lb[0], upper=ub[0],value=x0[0])
     opt_prob.addObj('obj')
-    print("Lower bound: " + str(lb[0])) 
-    print("Upper bound: " + str(ub[0]))    
     opt_prob.addConGroup("con", len(project.config.OPT_CONSTRAINT['INEQUALITY']),lower=lb[0],upper=ub[0])
 
-
-    print('Number of constraints: ' + str(len(project.config.OPT_CONSTRAINT['INEQUALITY'])))
 
     if (optimizer == 'SLSQP'):
         opt  =SLSQP(options = optOptions)
@@ -130,15 +126,9 @@ def pyOptSparse_optimization(project,x0=None,xb=None,its=100,accu=1e-10, optimiz
 
     ############################################
     # Call the optimizer
-
-    print ("Calling the optimizer ....")
     sol = opt(opt_prob, sens=sens, p1=project)
-    
     print(sol)
-
     ############################################
-
-
 
     return 0
 
@@ -159,42 +149,30 @@ def print_summary(optimizer_name, n_dv, obj_scale, its, accu, x0, xb):
 def obj_f(xdict, project):
     x = xdict["x"]
     funcs={}
-    print("Performing forward analysis ...")
     obj_list = project.obj_f(x)
-    print("Forward analysis complete ! ")
     obj = 0
     for this_obj in obj_list:
         obj = obj+this_obj
     funcs["obj"] = obj
-    print(obj_list)
+    
     #---------------------------------------#
-    print("Computing inequality constraints...")
     iqcon_list = project.con_cieq(x)
-    print("Computed inequality constraints...")
     iqcon = 0
     for this_iqcon in iqcon_list:
-        print(iqcon)
         iqcon = iqcon + this_iqcon
-    print(iqcon)
-    print(iqcon_list)
     funcs["con"] = iqcon_list
 
-    print("Computed in equality constraints")
-    print('funcs: ' + str(funcs))
-    #ieqcons = con_cieq(x, project)
-    #g_con = concatenate([eqcons, ieqcons])
+
     fail = False
 
     return funcs, fail
 
 # FUNCTION DEFINITION FOR OBJECTIVE SENSITIVITY CALCULATION
 def obj_df(xdict, funcsDict, project):
-    print("I am here!")
     x = xdict["x"]
     funcsSens = {}
     funcsSens["obj"] = {}
     funcsSens["obj"]["x"] = {}
-    print("Performing adjoint calculation ...")
     dobj_list = project.obj_df(x)
     dobj=[0.0]*len(dobj_list[0])
     
@@ -206,17 +184,13 @@ def obj_df(xdict, funcsDict, project):
     dobj = array( dobj )
     list1 = dobj.tolist()
     funcsSens["obj"]["x"] = list1
-    print("Performed adjoint calculation!")
-
     #---------------------------------------#
     uncsSens = {}
     funcsSens["con"] = {}
     funcsSens["con"]["x"] = {}
-    print("Performing adjoint calculation for constraints ...")
     dcon_list = project.con_dcieq(x)
     dcon=[0.0]*len(dcon_list[0])
-    print(dcon_list)
-
+    
     for this_dcon in dcon_list:
         idv=0
         for this_dv_dcon in this_dcon:

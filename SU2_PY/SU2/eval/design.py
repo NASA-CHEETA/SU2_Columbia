@@ -519,6 +519,7 @@ def con_cieq(dvs,config,state=None):
         # Evaluate Constraint Function
         func = su2func(this_con,config,state)
         
+        
         # scaling and centering
         func = (func - value) * sign * global_factor * push
         
