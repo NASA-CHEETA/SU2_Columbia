@@ -5,6 +5,8 @@
 
 # SU2 (ver. 7.2.0 "Blackbird/Columbia"): The Open-Source CFD Code
 
+This is a fork of SU2 v. 7.2.0
+
 Computational analysis tools have revolutionized the way we design engineering systems, but most established codes are proprietary, unavailable, or prohibitively expensive for many users. The SU2 team is changing this, making multiphysics analysis and design optimization freely available as open-source software and involving everyone in its creation and development. 
 
 For an overview of the technical details in SU2, please see the following AIAA Journal article:
