@@ -36,12 +36,9 @@
 #include "../../../Common/include/parallelization/mpi_structure.hpp"
 #include "../integration/CIntegration.hpp"
 
-
 using namespace std;
 
 class COutput;
-
-//class CSMDO;
 
 /*!
  * \class CIteration
@@ -61,10 +58,6 @@ class CIteration {
   su2double StartTime{0.0}, /*!< \brief Tracking wall time. */
       StopTime{0.0}, UsedTime{0.0};
 
-  //bool enable_mdo;
-  //CSMDO *mdo;
-  //double *max_precice_dt, *dt;     
-
  public:
   /*!
    * \brief Constructor of the class.
@@ -76,8 +69,6 @@ class CIteration {
         nInst(config->GetnTimeInstances()),
         multizone(config->GetMultizone_Problem()),
         singlezone(!multizone) {}
-
-      
 
   /*!
    * \brief Destructor of the class.
@@ -177,11 +168,6 @@ class CIteration {
                      CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
                      CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
                      unsigned short val_iInst){}
-
-  virtual void MDOSolve(COutput* output, CIntegration**** integration, CGeometry**** geometry, CSolver***** solver,
-                     CNumerics****** numerics, CConfig** config, CSurfaceMovement** surface_movement,
-                     CVolumetricMovement*** grid_movement, CFreeFormDefBox*** FFDBox, unsigned short val_iZone,
-                     unsigned short val_iInst, int counter){}               
 
   /*!
    * \brief A virtual member.

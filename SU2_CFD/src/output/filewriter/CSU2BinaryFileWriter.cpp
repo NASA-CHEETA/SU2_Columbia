@@ -58,10 +58,6 @@ void CSU2BinaryFileWriter::Write_Data(){
   int var_buf_size = 5;
   int var_buf[5] = {535532, nVar, (int)nPoint_Global, 0, 0};
 
-  /*--- Begin I/O profiling here ----*/
-
-  
-
   /*--- Open the file using MPI I/O ---*/
 
   OpenMPIFile();

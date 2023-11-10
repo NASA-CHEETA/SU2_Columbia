@@ -346,50 +346,18 @@ void COutput::WriteToFile(CConfig *config, CGeometry *geometry, unsigned short f
 
     case RESTART_BINARY:
 
-    /* Should profile this for specific I/O bottleneck */
-    /* Restart files are written using MPI I/O */
-    /* MPI I/O Arguments are defined in respective Binary file writers */
-    /* Above applies to Mesh Binary writes as well */
-
       if (fileName.empty())
         fileName = config->GetFilename(restartFilename, "", curTimeIter);
 
-   
-
-      double Restart_Wrt_Time, startTime, stopTime;
-
-      /* Profile this I/O operation */
-
-      startTime = SU2_MPI::Wtime();
-
-      fileWriter = new CSU2BinaryFileWriter(fileName, volumeDataSorter);
-
-      stopTime = SU2_MPI::Wtime();
-      
-      /* Restart file write profiling ends here */
-      
-
-      Restart_Wrt_Time = prof_Rest_Wrt(startTime,stopTime);
-      
-     
-
-      if (config->GetWrt_Performance() && (rank == MASTER_NODE))
-      {
-        
-        std::cout.precision(6);
-        std::cout << " Binary Restart Write time(s) : " << Restart_Wrt_Time << std::endl;
-      }
-
-      if (rank == MASTER_NODE) 
-      {
+      if (rank == MASTER_NODE) {
           (*fileWritingTable) << "SU2 restart" << fileName + CSU2BinaryFileWriter::fileExt;
       }
+
+      fileWriter = new CSU2BinaryFileWriter(fileName, volumeDataSorter);
 
       break;
 
     case MESH:
-
-     /* Should profile this for specific I/O bottleneck */
 
       if (fileName.empty())
         fileName = volumeFilename;
@@ -726,14 +694,11 @@ void COutput::WriteToFile(CConfig *config, CGeometry *geometry, unsigned short f
 
     /*--- Compute and store the bandwidth ---*/
 
-    if (format == RESTART_BINARY)
-    {
+    if (format == RESTART_BINARY){
       config->SetRestart_Bandwidth_Agg(config->GetRestart_Bandwidth_Agg()+BandWidth);
-  
     }
 
-    if (config->GetWrt_Performance() && (rank == MASTER_NODE))
-    {
+    if (config->GetWrt_Performance() && (rank == MASTER_NODE)){
       fileWritingTable->SetAlign(PrintingToolbox::CTablePrinter::RIGHT);
       (*fileWritingTable) << " " << "(" + PrintingToolbox::to_string(BandWidth) + " MB/s)";
       fileWritingTable->SetAlign(PrintingToolbox::CTablePrinter::LEFT);
@@ -805,9 +770,6 @@ bool COutput::SetResult_Files(CGeometry *geometry, CConfig *config, CSolver** so
 
     WriteAdditionalFiles(config, geometry, solver_container);
 
-    /*---Write deformed mesh ---*/
-    //WriteToFile(config_container[ZONE_0],geometry_container[ZONE_0][INST_0][MESH_0], MESH, config_container[ZONE_0]->GetMesh_Out_FileName());
-    //WriteToFile(config,geometry, MESH, config->GetMesh_Out_FileName());
     return true;
   }
 
@@ -1163,12 +1125,9 @@ void COutput::PreprocessHistoryOutput(CConfig *config, bool wrt){
 
   /*--- We use a fixed size of the file output summary table ---*/
 
-  /*--- Add Additonal column for MPI I/O write profile ---*/
-
   int total_width = 72;
   fileWritingTable->AddColumn("File Writing Summary", (total_width)/2-1);
   fileWritingTable->AddColumn("Filename", total_width/2-1);
-  //fileWritingTable->AddColumn("Write Time", total_width/2-1);
   fileWritingTable->SetAlign(PrintingToolbox::CTablePrinter::LEFT);
 
   /*--- Check for consistency and remove fields that are requested but not available --- */
@@ -1216,7 +1175,6 @@ void COutput::PreprocessMultizoneHistoryOutput(COutput **output, CConfig **confi
   int total_width = 72;
   fileWritingTable->AddColumn("File Writing Summary", (total_width-1)/2);
   fileWritingTable->AddColumn("Filename", total_width/2);
-  //fileWritingTable->AddColumn("Write Time", total_width/2-1);
   fileWritingTable->SetAlign(PrintingToolbox::CTablePrinter::LEFT);
 
   /*--- Check for consistency and remove fields that are requested but not available --- */
@@ -2201,12 +2159,4 @@ void COutput::PrintVolumeFields(){
 
     VolumeFieldTable.PrintFooter();
   }
-
-  
-  
 }
-/* Function description for profile */
-double COutput::prof_Rest_Wrt(double startTime, double stopTime)
-  {
-    return (stopTime-startTime);
-  }

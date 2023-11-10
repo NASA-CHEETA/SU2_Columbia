@@ -125,7 +125,7 @@ protected:
   **Jacobian_ij,            /*!< \brief Auxiliary matrices for storing point to point Jacobians. */
   **Jacobian_ji,            /*!< \brief Auxiliary matrices for storing point to point Jacobians. */
   **Jacobian_jj;            /*!< \brief Auxiliary matrices for storing point to point Jacobians. */
-  
+
   /*--- End variables that need to go. ---*/
 
   su2activevector iPoint_UndLapl;  /*!< \brief Auxiliary variable for the undivided Laplacians. */
@@ -143,8 +143,7 @@ protected:
   bool implicit_periodic;  /*!< \brief Flag that controls whether the implicit system should be treated by the periodic BC comms. */
 
   bool dynamic_grid;       /*!< \brief Flag that determines whether the grid is dynamic (moving or deforming + grid velocities). */
-  
- // vector<su2activematrix> FSITraction; 
+
   vector<su2activematrix> VertexTraction;          /*- Temporary, this will be moved to a new postprocessing structure once in place -*/
   vector<su2activematrix> VertexTractionAdjoint;   /*- Also temporary -*/
 
@@ -4246,20 +4245,17 @@ public:
    * \param[in] geometry - Geometrical definition.
    * \param[in] config   - Definition of the particular problem.
    */
-  void ComputeVertexTractions(CGeometry *geometry,  CConfig *config);
+  void ComputeVertexTractions(CGeometry *geometry, const CConfig *config);
 
   /*!
-   * \brief Returns the vertex tractions.
+   * \brief Set the adjoints of the vertex tractions.
    * \param[in] iMarker  - Index of the marker
    * \param[in] iVertex  - Index of the relevant vertex
    * \param[in] iDim     - Dimension
    */
-  inline su2double GetVertexTractions(unsigned short iMarker, unsigned long iVertex, unsigned short iDim)
-   {
-     //std::cout << "Returning traction for vertexID " << iVertex << std::endl;
-     //return value;
-     return VertexTraction[iMarker][iVertex][iDim];
-   }
+  inline su2double GetVertexTractions(unsigned short iMarker, unsigned long iVertex, unsigned short iDim) const {
+    return VertexTraction[iMarker][iVertex][iDim];
+  }
 
   /*!
    * \brief Register the vertex tractions as output.

@@ -30,38 +30,16 @@
 #include "../../include/output/COutput.hpp"
 #include "../../include/solvers/CFEASolver.hpp"
 
-
-
 void CIteration::SetGrid_Movement(CGeometry** geometry, CSurfaceMovement* surface_movement,
                                   CVolumetricMovement* grid_movement, CSolver*** solver, CConfig* config,
                                   unsigned long IntIter, unsigned long TimeIter) {
-
-  unsigned short Kind_Grid_Movement;
-  
+  unsigned short Kind_Grid_Movement = config->GetKind_GridMovement();
   bool adjoint = config->GetContinuous_Adjoint();
 
   unsigned short val_iZone = config->GetiZone();
 
-  bool Smdo_mode =config->GetSMDO_Mode();
-  bool Umdo_mode =config->GetUMDO_Mode();
-
-  if (Smdo_mode || Umdo_mode)
-  {
-    Kind_Grid_Movement = PRECICE_MOVEMENT;
-  }
-
-  else
-  {
-    Kind_Grid_Movement = config->GetKind_GridMovement();
-  }
-
- 
-
-
-
   /*--- Perform mesh movement depending on specified type ---*/
-  switch (Kind_Grid_Movement)
-  {
+  switch (Kind_Grid_Movement) {
     case RIGID_MOTION:
 
       if (rank == MASTER_NODE) cout << endl << " Performing rigid mesh transformation." << endl;
@@ -85,28 +63,6 @@ void CIteration::SetGrid_Movement(CGeometry** geometry, CSurfaceMovement* surfac
       /*--- Already initialized in the static mesh movement routine at driver level. ---*/
     case STEADY_TRANSLATION:
     case ROTATING_FRAME:
-      break;   
-
-
-
-     /* --- Case for mesh motion with external elastic solver during MDO ---*/
-    case PRECICE_MOVEMENT:
-
-      if(rank == MASTER_NODE)
-      {
-        std::cout<<"Updating farfield nodes after aero-elastic update!"<<std::endl;
-      }
-      grid_movement->SetVolume_Deformation(geometry[MESH_0], config, true);
-
-     
-      if (rank == MASTER_NODE)
-        cout << "Computing grid velocities by finite differencing ." << endl;
-      geometry[MESH_0]->SetGridVelocity(config);
-
-      /*--- Update the multigrid structure after moving the finest grid,
-       including computing the grid velocities on the coarser levels. ---*/
-     grid_movement->UpdateMultiGrid(geometry, config);
-
       break;
   }
 
@@ -193,8 +149,7 @@ void CIteration::SetGrid_Movement(CGeometry** geometry, CSurfaceMovement* surfac
 }
 
 void CIteration::SetMesh_Deformation(CGeometry** geometry, CSolver** solver, CNumerics*** numerics, CConfig* config,
-                                     RECORDING kind_recording) 
-{
+                                     RECORDING kind_recording) {
   if (!config->GetDeform_Mesh()) return;
 
   /*--- Perform the elasticity mesh movement ---*/
@@ -204,11 +159,6 @@ void CIteration::SetMesh_Deformation(CGeometry** geometry, CSolver** solver, CNu
     /*--- In a primal run, AD::TapeActive returns a false ---*/
     /*--- In any other recordings, the tape is passive during the deformation. ---*/
     wasActive = AD::BeginPassive();
-  }
-
-  if (rank == MASTER_NODE)
-  {
-    std::cout << "Deforming mesh using linear elasticity with new DEF class" << std::endl;
   }
 
   /*--- Set the stiffness of each element mesh into the mesh numerics ---*/

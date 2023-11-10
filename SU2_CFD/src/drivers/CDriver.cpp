@@ -91,7 +91,6 @@
 
 #include <cassert>
 
-
 #ifdef VTUNEPROF
 #include <ittnotify.h>
 #endif
@@ -99,9 +98,7 @@
 
 CDriver::CDriver(char* confFile, unsigned short val_nZone, SU2_Comm MPICommunicator, bool dummy_geo) :
   config_file_name(confFile), StartTime(0.0), StopTime(0.0), UsedTime(0.0),
-  TimeIter(0), nZone(val_nZone), StopCalc(false), fsi(false), fem_solver(false), dry_run(dummy_geo) 
-  
-{
+  TimeIter(0), nZone(val_nZone), StopCalc(false), fsi(false), fem_solver(false), dry_run(dummy_geo) {
 
   /*--- Initialize Medipack (must also be here so it is initialized from python) ---*/
 #ifdef HAVE_MPI
@@ -263,14 +260,13 @@ CDriver::CDriver(char* confFile, unsigned short val_nZone, SU2_Comm MPICommunica
 
 
   /*--- Preprocessing time is reported now, but not included in the next compute portion. ---*/
-  /*--- Start Time is computed at Line 119. ---*/
+
   StopTime = SU2_MPI::Wtime();
 
   /*--- Compute/print the total time for performance benchmarking. ---*/
 
   UsedTime = StopTime-StartTime;
   UsedTimePreproc    = UsedTime;
-  /* -- Initialize compute and output times here. ---*/
   UsedTimeCompute    = 0.0;
   UsedTimeOutput     = 0.0;
   IterCount          = 0;
@@ -279,9 +275,7 @@ CDriver::CDriver(char* confFile, unsigned short val_nZone, SU2_Comm MPICommunica
   MDOFsDomain        = 0.0;
   Mpoints            = 0.0;
   MpointsDomain      = 0.0;
-
-  for (iZone = 0; iZone < nZone; iZone++) 
-  {
+  for (iZone = 0; iZone < nZone; iZone++) {
     Mpoints       += geometry_container[iZone][INST_0][MESH_0]->GetGlobal_nPoint()/(1.0e6);
     MpointsDomain += geometry_container[iZone][INST_0][MESH_0]->GetGlobal_nPointDomain()/(1.0e6);
     MDOFs         += DOFsPerPoint*geometry_container[iZone][INST_0][MESH_0]->GetGlobal_nPoint()/(1.0e6);
@@ -344,8 +338,7 @@ void CDriver::SetContainers_Null(){
   driver_config                  = nullptr;
   driver_output                  = nullptr;
 
-  for (iZone = 0; iZone < nZone; iZone++) 
-  {
+  for (iZone = 0; iZone < nZone; iZone++) {
     interface_types[iZone] = new unsigned short[nZone];
     nInst[iZone] = 1;
   }
@@ -498,10 +491,6 @@ void CDriver::Postprocessing() {
 
   if (rank == MASTER_NODE) cout << "Deleted COutput class." << endl;
 
-  /* Deallocate the MDO object ----*/
-
-  
-
   if (rank == MASTER_NODE) cout << "-------------------------------------------------------------------------" << endl;
 
 
@@ -514,9 +503,9 @@ void CDriver::Postprocessing() {
 
   if ((rank == MASTER_NODE) && (wrt_perf)) {
     su2double TotalTime = UsedTimePreproc + UsedTimeCompute + UsedTimeOutput;
-    
+    cout.precision(6);
     cout << endl << endl <<"-------------------------- Performance Summary --------------------------" << endl;
-    cout << " SU2 Naive Profiling Results:" << endl;
+    cout << "Simulation totals:" << endl;
     cout << setw(25) << "Wall-clock time (hrs):" << setw(12) << (TotalTime)/(60.0*60.0) << " | ";
     cout << setw(20) << "Core-hrs:" << setw(12) << size*TotalTime/(60.0*60.0) << endl;
     cout << setw(25) << "Cores:" << setw(12) << size << " | ";
@@ -553,7 +542,6 @@ void CDriver::Postprocessing() {
     cout << "-------------------------------------------------------------------------" << endl;
     cout << endl;
   }
-
 
   /*--- Exit the solver cleanly ---*/
 
@@ -1120,12 +1108,8 @@ void CDriver::Solver_Restart(CSolver ***solver, CGeometry **geometry,
 
   /*--- Check for restarts and use the LoadRestart() routines. ---*/
 
-  
-
   const bool restart = config->GetRestart();
   const bool restart_flow = config->GetRestart_Flow();
-
-  
 
   /*--- Adjust iteration number for unsteady restarts. ---*/
 
@@ -1142,35 +1126,19 @@ void CDriver::Solver_Restart(CSolver ***solver, CGeometry **geometry,
     else val_iter = config->GetRestart_Iter() - 1 - dt_step_2nd;
   }
 
-  
-
   /*--- Restart direct solvers. ---*/
 
-  if (restart || restart_flow) 
-  {
-    for (auto iSol = 0u; iSol < MAX_SOLS; ++iSol) 
-    {
+  if (restart || restart_flow) {
+    for (auto iSol = 0u; iSol < MAX_SOLS; ++iSol) {
       auto sol = solver[MESH_0][iSol];
-      if (sol && !sol->GetAdjoint()) 
-      {
+      if (sol && !sol->GetAdjoint()) {
         /*--- Note that the mesh solver always loads the most recent file (and not -2). ---*/
         SU2_OMP_PARALLEL_(if(sol->GetHasHybridParallel()))
-
-       // if (config->GetSMDO_Mode())
-       // {
-       //   sol->LoadRestart(geometry, solver, config, val_iter + (iSol==MESH_SOL && dt_step_2nd), false);
-      //  }
-      //  else
-      //  {
-          sol->LoadRestart(geometry, solver, config, val_iter + (iSol==MESH_SOL && dt_step_2nd), update_geo);
-      //  }
+        sol->LoadRestart(geometry, solver, config, val_iter + (iSol==MESH_SOL && dt_step_2nd), update_geo);
         END_SU2_OMP_PARALLEL
       }
     }
   }
-
-
-  
 
   /*--- Restart adjoint solvers. ---*/
 
@@ -2699,16 +2667,14 @@ void CFluidDriver::StartSolver(){
   __itt_resume();
 #endif
 
-
   /*--- Main external loop of the solver. Within this loop, each iteration ---*/
 
   if (rank == MASTER_NODE){
-    cout << endl <<"------------------------------ Begin Foward Analysis -----------------------------" << endl;
+    cout << endl <<"------------------------------ Begin Solver -----------------------------" << endl;
   }
 
   unsigned long Iter = 0;
-  while ( Iter < Max_Iter ) 
-  {
+  while ( Iter < Max_Iter ) {
 
     /*--- Perform some external iteration preprocessing. ---*/
 
@@ -2725,8 +2691,6 @@ void CFluidDriver::StartSolver(){
     /*--- Run a single iteration of the problem (fluid, elasticity, heat, ...). ---*/
 
     Run();
-
- 
 
     /*--- Update the solution for dual time stepping strategy ---*/
 
@@ -2842,7 +2806,6 @@ void CFluidDriver::Run() {
 
     /*--- If convergence was reached in every zone --*/
 
-
   if (checkConvergence == nZone) break;
   }
 
@@ -2930,9 +2893,7 @@ bool CFluidDriver::Monitor(unsigned long ExtIter) {
 }
 
 
-void CFluidDriver::Output(unsigned long InnerIter ) 
-
-{
+void CFluidDriver::Output(unsigned long InnerIter) {
 
   for (iZone = 0; iZone < nZone; iZone++) {
     const auto inst = config_container[iZone]->GetiInst();

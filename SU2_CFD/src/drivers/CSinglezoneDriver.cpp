@@ -30,7 +30,6 @@
 #include "../../include/output/COutput.hpp"
 #include "../../include/iteration/CIteration.hpp"
 
-
 CSinglezoneDriver::CSinglezoneDriver(char* confFile,
                        unsigned short val_nZone,
                        SU2_Comm MPICommunicator) : CDriver(confFile,
@@ -46,46 +45,31 @@ CSinglezoneDriver::~CSinglezoneDriver(void) {
 
 }
 
-void CSinglezoneDriver::StartSolver() 
-{
+void CSinglezoneDriver::StartSolver() {
 
   StartTime = SU2_MPI::Wtime();
 
   config_container[ZONE_0]->Set_StartTime(StartTime);
-
-  /*---See if static MDO is required ---*/
-  bool enable_mdo = config_container[ZONE_0]->GetSMDO_Mode();
 
   /*--- Main external loop of the solver. Runs for the number of time steps required. ---*/
 
   if (rank == MASTER_NODE)
     cout << endl <<"------------------------------ Begin Solver -----------------------------" << endl;
 
-  if (rank == MASTER_NODE)
-  {
+  if (rank == MASTER_NODE){
     cout << endl <<"Simulation Run using the Single-zone Driver" << endl;
     if (driver_config->GetTime_Domain())
-    {
-        cout << "The simulation will run for "
-            << driver_config->GetnTime_Iter() - config_container[ZONE_0]->GetRestart_Iter() << " time steps." << endl;
-    }
-
-    if (enable_mdo)
-    {
-      std::cout << "Running steady-state aero-elastic simulation" << std::endl;
-    }   
+      cout << "The simulation will run for "
+           << driver_config->GetnTime_Iter() - config_container[ZONE_0]->GetRestart_Iter() << " time steps." << endl;
   }
-
-
-  
 
   /*--- Set the initial time iteration to the restart iteration. ---*/
   if (config_container[ZONE_0]->GetRestart() && driver_config->GetTime_Domain())
     TimeIter = config_container[ZONE_0]->GetRestart_Iter();
-  
-  while (TimeIter < config_container[ZONE_0]->GetnTime_Iter())
-  /*--- Run the problem until the number of time iterations required is reached. ---*/  
-  {
+
+  /*--- Run the problem until the number of time iterations required is reached. ---*/
+  while ( TimeIter < config_container[ZONE_0]->GetnTime_Iter() ) {
+
     /*--- Perform some preprocessing before starting the time-step simulation. ---*/
 
     Preprocess(TimeIter);
@@ -103,7 +87,7 @@ void CSinglezoneDriver::StartSolver()
     Update();
 
     /*--- Monitor the computations after each iteration. ---*/
-      
+
     Monitor(TimeIter);
 
     /*--- Output the solution in files. ---*/
@@ -111,8 +95,7 @@ void CSinglezoneDriver::StartSolver()
     Output(TimeIter);
     
     /*--- Save iteration solution for libROM ---*/
-    if (config_container[MESH_0]->GetSave_libROM()) 
-    {
+    if (config_container[MESH_0]->GetSave_libROM()) {
       solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL]->SavelibROM(geometry_container[ZONE_0][INST_0][MESH_0],
                                                                      config_container[ZONE_0], StopCalc);
     }
@@ -184,8 +167,6 @@ void CSinglezoneDriver::Run() {
         numerics_container, config_container, surface_movement, grid_movement, FFDBox, ZONE_0, INST_0);
 
 }
-
-
 
 void CSinglezoneDriver::Postprocess() {
 

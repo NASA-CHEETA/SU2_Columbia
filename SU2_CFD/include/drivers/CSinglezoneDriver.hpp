@@ -72,8 +72,6 @@ public:
    */
   void Run() override;
 
-
-
   /*!
    * \brief Postprocess the iteration for ZONE_0.
    */

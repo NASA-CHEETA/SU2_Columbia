@@ -155,8 +155,7 @@ su2_cfd_src += files(['drivers/CDriver.cpp',
                       'drivers/CSinglezoneDriver.cpp',
                       'drivers/CDiscAdjMultizoneDriver.cpp',
                       'drivers/CDiscAdjSinglezoneDriver.cpp',
-                      'drivers/CDummyDriver.cpp',
-                      'drivers/CStaticMDODriver.cpp'])
+                      'drivers/CDummyDriver.cpp'])
 
 su2_cfd_src += files(['integration/CIntegration.cpp',
                       'integration/CIntegrationFactory.cpp',
@@ -179,8 +178,6 @@ su2_cfd_src += files(['iteration/CIteration.cpp',
                       'iteration/CTurboIteration.cpp'])
 
 su2_cfd_src += files(['limiters/CLimiterDetails.cpp'])
-
-su2_cfd_src += files(['adapter/precice.cpp'])
 
 if get_option('enable-normal')
   su2_cfd_lib = static_library('SU2core',
