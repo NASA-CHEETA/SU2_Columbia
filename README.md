@@ -52,6 +52,18 @@ Short summary of the minimal requirements:
 
 **Note:** all other necessary build tools and dependencies are shipped with the source code or are downloaded automatically.
 
+**Note:** It is recmmended that your build SU2 Columbia with specific MPI distrubution. To set necessary flags:
+
+```
+which mpicc
+which mpicxx
+export MPICC = "output from which mpicc"
+export MPICXX = "output from which mpicxx"
+export CC=$MPICC
+export CXX=$MPICXX
+```
+
+
 If you have these tools installed, you can create a configuration using the `meson.py` found in the root source code folder:
 ```
 ./meson.py build -Dcustom-mpi=true --prefix= <prefix>
