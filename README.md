@@ -3,7 +3,7 @@
 </p>
 
 
-# SU2 (ver. 7.2.0 "Blackbird/Columbia"): The Open-Source CFD Code
+# SU2 (ver. 7.2.0 "Columbia"): A SU2 fork for large-scale aeroelastic optimization
 
 This is a fork of SU2 v. 7.2.0
 
