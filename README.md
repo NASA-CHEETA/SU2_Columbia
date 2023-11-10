@@ -47,7 +47,7 @@ The build system of SU2 is based on a combination of [meson](http://mesonbuild.c
 
 Short summary of the minimal requirements:
 
-- C/C++ compiler
+- MPI C and C++ compiler
 - Python 3
 
 **Note:** all other necessary build tools and dependencies are shipped with the source code or are downloaded automatically.
