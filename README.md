@@ -1,5 +1,5 @@
 <p align="center">
-<img width="500" height="308" src="Common/doc/Columbia_logo.png">
+<img width="500" height="308" src="Common/doc/Columbia_logo_new.png">
 </p>
 
 
