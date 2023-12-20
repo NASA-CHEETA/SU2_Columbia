@@ -1,5 +1,5 @@
 <p align="center">
-<img width="250" height="154" src="Common/doc/logoSU2small.png">
+<img width="250" height="154" src="Common/doc/CRM_topOpt.png">
 </p>
 
 
