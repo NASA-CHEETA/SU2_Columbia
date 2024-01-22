@@ -97,3 +97,9 @@ ninja
 
 # Ignore vscode folder
 .vscode/
+
+# Ignore vtk and .su2 files
+*.su2
+*.vtk
+*.vtu
+*.dat
