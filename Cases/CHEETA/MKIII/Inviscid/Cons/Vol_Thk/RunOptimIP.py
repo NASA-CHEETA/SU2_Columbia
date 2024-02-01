@@ -393,6 +393,7 @@ driver = IpoptDriver()
  # Objective function
 driver.addObjective("min", drag, GlobalScale)
 
+# DRIVERL IPOPT-------------------------------------------------------#
 nlp = driver.getNLP()
 
 # Wing pitching moment constraint
@@ -427,7 +428,7 @@ driver.setFailureMode("HARD")
 x0 = driver.getInitial()
 
 # Warm start parameters
-ncon = 0
+ncon = 12
 lbMult = np.zeros(nDV)
 ubMult= np.zeros(nDV)
 conMult = np.zeros(ncon)
@@ -449,6 +450,6 @@ nlp.set(warm_start_init_point = "no",
             recalc_y_feas_tol = 0.1,
             output_file = 'ipopt_output.txt')        # helps converging the dual problem with L-BFGS
 
-x, obj, status = nlp.solve(x0, mult_g = conMult, mult_x_L = lbMult, mult_x_U = ubMult)
+x, obj, status = nlp.solve(x0)
 
 # report the results
