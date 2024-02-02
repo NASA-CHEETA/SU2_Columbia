@@ -352,12 +352,12 @@ Ftol = FtolCr * GlobalScale
 OptIter = 1000
 
 # FUSELAGE AND WING VOLUME SCALING PARAMETERS (MKIII)
-BSL_FUSE_VOL = 415.289
-FACTOR_FV = 1
+BSL_FUSE_VOL = 402.277
+FACTOR_FV = 0.99
 TRG_FUSE_VOL = BSL_FUSE_VOL * FACTOR_FV
 
-BSL_WING_VOL = 15.1811
-FACTOR_WV = 1
+BSL_WING_VOL = 15.1869
+FACTOR_WV = 0.99
 TRG_WING_VOL = BSL_WING_VOL * FACTOR_WV
 
 # THICKNESS BOUND (xx % of BSL value)
@@ -393,29 +393,28 @@ driver = IpoptDriver()
  # Objective function
 driver.addObjective("min", drag, GlobalScale)
 
-# DRIVERL IPOPT-------------------------------------------------------#
-nlp = driver.getNLP()
+
 
 # Wing pitching moment constraint
 #driver.addLowerBound(mom, -0.006543, GlobalScale , ConScale)
 
 # Fuselage volume constraint
-driver.addLowerBound(FuseVol, TRG_FUSE_VOL, GlobalScale , ConScale)
+driver.addLowerBound(FuseVol, TRG_FUSE_VOL, GlobalScale)
 
 # Wing volume constraint
-driver.addLowerBound(WingVol, TRG_WING_VOL, GlobalScale , ConScale)
+driver.addLowerBound(WingVol, TRG_WING_VOL, GlobalScale)
 
 # Span-wise thickness constraints
-driver.addLowerBound(ST1_TH, ST1_T* THK_BND, GlobalScale , ConScale)
-driver.addLowerBound(ST2_TH, ST2_T* THK_BND, GlobalScale , ConScale)
-driver.addLowerBound(ST3_TH, ST3_T* THK_BND, GlobalScale , ConScale)
-driver.addLowerBound(ST4_TH, ST4_T* THK_BND, GlobalScale , ConScale)
-driver.addLowerBound(ST5_TH, ST5_T* THK_BND, GlobalScale , ConScale)
-driver.addLowerBound(ST6_TH, ST6_T* THK_BND, GlobalScale , ConScale)
-driver.addLowerBound(ST7_TH, ST7_T* THK_BND, GlobalScale , ConScale)
-driver.addLowerBound(ST8_TH, ST8_T* THK_BND, GlobalScale , ConScale)
-driver.addLowerBound(ST9_TH, ST9_T* THK_BND, GlobalScale , ConScale)
-driver.addLowerBound(ST10_TH, ST10_T* THK_BND, GlobalScale , ConScale)
+driver.addLowerBound(ST1_TH, ST1_T* THK_BND, GlobalScale)
+driver.addLowerBound(ST2_TH, ST2_T* THK_BND, GlobalScale)
+driver.addLowerBound(ST3_TH, ST3_T* THK_BND, GlobalScale)
+driver.addLowerBound(ST4_TH, ST4_T* THK_BND, GlobalScale)
+driver.addLowerBound(ST5_TH, ST5_T* THK_BND, GlobalScale)
+driver.addLowerBound(ST6_TH, ST6_T* THK_BND, GlobalScale)
+driver.addLowerBound(ST7_TH, ST7_T* THK_BND, GlobalScale)
+driver.addLowerBound(ST8_TH, ST8_T* THK_BND, GlobalScale)
+driver.addLowerBound(ST9_TH, ST9_T* THK_BND, GlobalScale)
+driver.addLowerBound(ST10_TH, ST10_T* THK_BND, GlobalScale)
 
 
 driver.setWorkingDirectory("WORKDIR")
@@ -424,11 +423,14 @@ driver.setEvaluationMode(False,2.0)
 driver.setStorageMode(True,"DSN_")
 driver.setFailureMode("HARD")
 
+# DRIVERL IPOPT-------------------------------------------------------#
+nlp = driver.getNLP()
+
 # Optimization
 x0 = driver.getInitial()
 
 # Warm start parameters
-ncon = 12
+ncon = 2
 lbMult = np.zeros(nDV)
 ubMult= np.zeros(nDV)
 conMult = np.zeros(ncon)
