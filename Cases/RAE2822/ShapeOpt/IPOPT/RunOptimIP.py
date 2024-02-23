@@ -282,6 +282,9 @@ nlp = driver.getNLP()
 # Optimization
 x0 = driver.getInitial()
 
+print("Initial Design Variable vector:")
+print(x0)
+
 # Warm start parameters
 ncon = 1
 lbMult = np.zeros(nDV)
@@ -306,8 +309,20 @@ nlp.set(warm_start_init_point = "no",
 
 x, obj, status = nlp.solve(x0, mult_g = conMult, mult_x_L = lbMult, mult_x_U = ubMult)
 
-# report the results
-#print(results)
+# Print the optimized results---->
+
+print("Primal variables solution")
+print("x: ", x)
+
+print("Bound multipliers solution: Lower bound")
+print("lbMult: ", lbMult)
+
+print("Bound multipliers solution: Upper bound")
+print("lbMult: ", ubMult)
+
+
+print("Constraint multipliers solution")
+print("lambda:",conMult)
 
 
 
