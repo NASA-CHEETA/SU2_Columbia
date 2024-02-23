@@ -10,6 +10,8 @@ import shutil
 import pandas as pd
 import ipyopt
 
+from numpy import ones, array, zeros
+
 # MOVE THESE TO FADO ROOT---------------------#
 def getLatestIter():
     Conv = pd.read_csv('convergence.csv', skiprows = 0)
@@ -260,7 +262,7 @@ GlobalScale = 1
 ConScale = 1
 FtolCr = 1E-12
 Ftol = FtolCr * GlobalScale
-OptIter = 5
+OptIter = 2
 
 
 # DRIVERL IPOPT-------------------------------------------------------#
