@@ -9,132 +9,7 @@ import glob
 import shutil
 import pandas as pd
 import ipyopt
-
-# MOVE THESE TO FADO ROOT---------------------#
-def getLatestIter():
-    Conv = pd.read_csv('convergence.csv', skiprows = 0)
-    Arr = Conv.to_numpy()
-    Major_Iter = Arr[:,0]
-    Last_Iter = int(np.max(Major_Iter))
-    return Last_Iter
-
-
-def restart(meshName = None):
-    # STEP 1: Move the baseline to preserve file
-    # Get path at root
-    Root = os.getcwd()  
-    if os.path.exists("BASELINE_MESH") and os.path.isdir("BASELINE_MESH"):
-        print("Baseline mesh directory exists!")
-    else:
-        print("Moving baseline mesh")
-        os.mkdir("BASELINE_MESH")
-        for file in glob.glob('BASELINE_MESH'):
-            # Move to this directory and get the path
-            os.chdir(file)
-            BSL_MSH = os.getcwd()
-        # Preserve baseline mesh by moving it to "BASELINE_MESH"
-        os.chdir(Root)
-        for file in glob.glob(meshName):
-            shutil.move(file, BSL_MSH)
-            print("Done!")
-
-    # STEP 2: Query te convergence file to get intermediate mesh
-    Conv = pd.read_csv('convergence.csv', skiprows = 0)
-    Arr = Conv.to_numpy()
-    # Last optimization iteration
-
-    Major_Iter = Arr[:,0]
-    Last_Iter = int(np.max(Major_Iter))
-    # Last function evaluation at the corresponding optimization iteration
-    # Do Last_Iter -1 since python3 starts from 0
-    Last_FEval = int(Arr[Last_Iter-1,1])
-    Target_DIR = "DSN_{:03d}".format(Last_FEval)
-    if os.path.isdir(Target_DIR):
-        print("Original restart directory found.")
-        shutil.rmtree("WORKDIR")
-        os.chdir(str(Target_DIR)+"/DEFORM")
-        for file in glob.glob("*FFD_def.su2"):
-            shutil.copy(file, Root)
-        os.chdir(Root)
-        for file in glob.glob("*FFD_def.su2"):
-            os.rename(file, meshName)
-    else:
-        print("Target directory does not exist but solution has converged")
-        print("Renaming WORKDIR to ", Target_DIR)
-        os.rename("WORKDIR", Target_DIR)
-        # Now go into the target directory and move the mesh to root
-        os.chdir(str(Target_DIR)+"/DEFORM")
-        for file in glob.glob("*FFD_def.su2"):
-            shutil.copy(file, Root)
-        os.chdir(Root)
-        for file in glob.glob("*FFD_def.su2"):
-            os.rename(file, meshName)
-
-    return Last_FEval
-    
-
-def initialize_file(filename):
-    """
-    Initializes the CSV file with the header.
-    :param filename: Name of the file to initialize.
-    """
-    header = ['ITER', 'FEVAL', 'OBJ', 'OPTIMALITY', 'CMY FSB', 'FUSE VOL FSB', 'WING VOL FSB']
-    #header = ['ITER', 'FEVAL', 'OBJ', 'OPTIMALITY', 'FUSE VOL FSB', 'WING VOL FSB']
-
-    with open(filename, 'a', newline='') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(header)
-
-    # Define a callback function
-def store_data(xk, filename):
-    """
-    Queries variour values from driver class and writes them to
-    a csv file.
-    """
-    global iteration
-
-    # Query objective function value and optimality 
-    objective_value = driver.funRec(xk)                                          
-    optimality = np.linalg.norm(driver.grad(xk),ord=np.inf)    
-                             
-    # Query wing moment constraint feasibility
-    #feasb_mom = driver._eval_g(xk,0)                                          
-    #mom_jacobian = np.linalg.norm(driver._eval_jac_g(xk,0))    
-
-    # Query fuselage volume constraint feasibility
-    #fuse_vol = driver._eval_g(xk,1)                                          
-    #area_jacobian = np.linalg.norm(driver._eval_jac_g(xk,1))      
-
-    # Query wing volume constraint feasibility
-    #wing_vol = driver._eval_g(xk,2)                                          
-    #area_jacobian = np.linalg.norm(driver._eval_jac_g(xk,1)) 
-
-    # Get counter for feval
-    counter = driver.fEvalCtr()        
-
-   #data = [iteration, counter, objective_value, optimality, fuse_vol, wing_vol]
-    data = [iteration, counter, objective_value, optimality]
-    formatted_data = [str(data[0]), str(data[1])] + ["{:.6e}".format(value) for value in data[2:]]
-
-    iteration += 1
-
-   
-    with open(filename, 'a', newline='') as csvfile:
-        writer = csv.writer(csvfile, delimiter = ',')
-        writer.writerow(formatted_data)
-
-
-
-# OPTIMZIATION RESTART SETTINGS---------------#
-Restart = False
-
-# GLobal variable to store the iteration value
-if Restart:
-    # Get the latest optimization iteration from the csv file
-    iteration = getLatestIter() + 1
-else:
-    # Starting a new run, set starting iteration to 1
-    iteration = 1
+from numpy import ones, array, zeros
 
 # Design Variables-----#
 nDV = 599
@@ -142,7 +17,7 @@ x0 = np.zeros((nDV,))
 
 # Define InputVariable class object: ffd
 ffd = InputVariable(0.0, PreStringHandler("DV_VALUE="), nDV)
-ffd = InputVariable(x0,ArrayLabelReplacer("__FFD_PTS__"), 0, np.ones(nDV), -1.1,1.1)
+ffd = InputVariable(x0,ArrayLabelReplacer("__FFD_PTS__"), 0, np.ones(nDV), -0.07,0.07)
 
 # Replace %__DIRECT__% with an empty string when using enable_direct
 enable_direct = Parameter([""], LabelReplacer("%__DIRECT__"))
@@ -349,7 +224,7 @@ GlobalScale = 1
 ConScale = 1
 FtolCr = 1E-12
 Ftol = FtolCr * GlobalScale
-OptIter = 1000
+OptIter = 15
 
 # FUSELAGE AND WING VOLUME SCALING PARAMETERS (MKIII)
 BSL_FUSE_VOL = 402.277
@@ -357,11 +232,11 @@ FACTOR_FV = 0.99
 TRG_FUSE_VOL = BSL_FUSE_VOL * FACTOR_FV
 
 BSL_WING_VOL = 15.1869
-FACTOR_WV = 0.99
+FACTOR_WV = 0.95
 TRG_WING_VOL = BSL_WING_VOL * FACTOR_WV
 
 # THICKNESS BOUND (xx % of BSL value)
-THK_BND = 0.25
+THK_BND = 0.99
 
 
 # Spanwise thickness values
@@ -399,10 +274,10 @@ driver.addObjective("min", drag, GlobalScale)
 #driver.addLowerBound(mom, -0.006543, GlobalScale , ConScale)
 
 # Fuselage volume constraint
-driver.addLowerBound(FuseVol, TRG_FUSE_VOL, GlobalScale)
+driver.addUpperBound(FuseVol, TRG_FUSE_VOL, GlobalScale)
 
 # Wing volume constraint
-driver.addLowerBound(WingVol, TRG_WING_VOL, GlobalScale)
+driver.addUpperBound(WingVol, TRG_WING_VOL, GlobalScale)
 
 # Span-wise thickness constraints
 driver.addLowerBound(ST1_TH, ST1_T* THK_BND, GlobalScale)
@@ -429,13 +304,26 @@ nlp = driver.getNLP()
 # Optimization
 x0 = driver.getInitial()
 
-# Warm start parameters
-ncon = 2
+
+# Use for initial estimates
+ncon =12
 lbMult = np.zeros(nDV)
 ubMult= np.zeros(nDV)
 conMult = np.zeros(ncon)
 
+# Warm start parameters
 
+#ubMult = array([1.33506674, 1.1747711,  1.15846737, 1.16227477, 1.19011096, 1.19600957,
+# 1.13105525, 0.03668085, 1.34894454, 1.22115938, 1.26765997, 1.19816855,
+# 1.69001066, 1.34019032, 1.17331481, 0.27101527, 1.31060325, 1.31060325,
+# 1.31060325, 1.31060325, 1.31060325, 1.31060325, 1.31060325, 1.31060325,])
+
+#lbMult = array([1.27720432, 1.48025902, 1.50522449, 1.49852626, 1.4379713,  1.4059509,
+# 1.30525512, 0.72623611, 1.25142591, 1.41293871, 1.35446727, 1.31064884,
+# 0.97017233, 1.14013989, 1.18209898, 0.74979554, 1.31060325, 1.31060325,
+# 1.31060325, 1.31060325, 1.31060325, 1.31060325, 1.31060325, 1.31060325])
+
+#conMult = array([-5.19927652])
 
 # NLP settings
 nlp.set(warm_start_init_point = "no",
@@ -452,6 +340,19 @@ nlp.set(warm_start_init_point = "no",
             recalc_y_feas_tol = 0.1,
             output_file = 'ipopt_output.txt')        # helps converging the dual problem with L-BFGS
 
-x, obj, status = nlp.solve(x0)
+x, obj, status = nlp.solve(x0, mult_g = conMult, mult_x_L = lbMult, mult_x_U = ubMult)
 
-# report the results
+# Print the optimized results---->
+
+print("Primal variables solution")
+print("x: ", x)
+
+print("Bound multipliers solution: Lower bound")
+print("lbMult: ", lbMult)
+
+print("Bound multipliers solution: Upper bound")
+print("ubMult: ", ubMult)
+
+
+print("Constraint multipliers solution")
+print("lambda:",conMult)
