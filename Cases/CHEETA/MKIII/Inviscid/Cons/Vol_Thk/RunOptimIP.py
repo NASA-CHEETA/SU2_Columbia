@@ -236,7 +236,7 @@ FACTOR_WV = 0.95
 TRG_WING_VOL = BSL_WING_VOL * FACTOR_WV
 
 # THICKNESS BOUND (xx % of BSL value)
-THK_BND = 0.99
+THK_BND = 0.50
 
 
 # Spanwise thickness values
