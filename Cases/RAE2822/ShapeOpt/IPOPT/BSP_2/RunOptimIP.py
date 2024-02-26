@@ -187,9 +187,12 @@ ncon = 3
 
 #conMult = array([-5.19927652])
 
+# Use for initial estimates
 lbMult = np.zeros(nDV)
 ubMult= np.zeros(nDV)
 conMult = np.zeros(ncon)
+
+
 
 
 # NLP settings
