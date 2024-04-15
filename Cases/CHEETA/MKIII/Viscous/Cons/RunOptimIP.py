@@ -266,7 +266,7 @@ driver = IpoptDriver()
  # Objective function
 driver.addObjective("min", drag, GlobalScale)
 
-nlp = driver.getNLP()
+
 
 # Wing pitching moment constraint
 #driver.addLowerBound(mom, -0.006543, GlobalScale , ConScale)
@@ -296,6 +296,9 @@ driver.setEvaluationMode(False,2.0)
 driver.setStorageMode(True,"DSN_")
 driver.setFailureMode("HARD")
 
+# DRIVERL IPOPT-------------------------------------------------------#
+nlp = driver.getNLP()
+
 # Optimization
 x0 = driver.getInitial()
 
@@ -305,19 +308,17 @@ lbMult = np.zeros(nDV)
 ubMult= np.zeros(nDV)
 conMult = np.zeros(ncon)
 
-# WARM START PARAMETERS
-#x0 = array([])
-
 print("Initial Design Variable vector:")
 print(x0)
 
+# WARM START PARAMETERS
+#x0 = array([])
 
 #ubMult = array([])
 
 #lbMult = array([])
 
 #conMult = array([])
-
 
 
 # NLP settings
