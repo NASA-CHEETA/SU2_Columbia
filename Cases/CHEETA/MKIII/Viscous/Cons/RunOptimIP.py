@@ -9,132 +9,7 @@ import glob
 import shutil
 import pandas as pd
 import ipyopt
-
-# MOVE THESE TO FADO ROOT---------------------#
-def getLatestIter():
-    Conv = pd.read_csv('convergence.csv', skiprows = 0)
-    Arr = Conv.to_numpy()
-    Major_Iter = Arr[:,0]
-    Last_Iter = int(np.max(Major_Iter))
-    return Last_Iter
-
-
-def restart(meshName = None):
-    # STEP 1: Move the baseline to preserve file
-    # Get path at root
-    Root = os.getcwd()  
-    if os.path.exists("BASELINE_MESH") and os.path.isdir("BASELINE_MESH"):
-        print("Baseline mesh directory exists!")
-    else:
-        print("Moving baseline mesh")
-        os.mkdir("BASELINE_MESH")
-        for file in glob.glob('BASELINE_MESH'):
-            # Move to this directory and get the path
-            os.chdir(file)
-            BSL_MSH = os.getcwd()
-        # Preserve baseline mesh by moving it to "BASELINE_MESH"
-        os.chdir(Root)
-        for file in glob.glob(meshName):
-            shutil.move(file, BSL_MSH)
-            print("Done!")
-
-    # STEP 2: Query te convergence file to get intermediate mesh
-    Conv = pd.read_csv('convergence.csv', skiprows = 0)
-    Arr = Conv.to_numpy()
-    # Last optimization iteration
-
-    Major_Iter = Arr[:,0]
-    Last_Iter = int(np.max(Major_Iter))
-    # Last function evaluation at the corresponding optimization iteration
-    # Do Last_Iter -1 since python3 starts from 0
-    Last_FEval = int(Arr[Last_Iter-1,1])
-    Target_DIR = "DSN_{:03d}".format(Last_FEval)
-    if os.path.isdir(Target_DIR):
-        print("Original restart directory found.")
-        shutil.rmtree("WORKDIR")
-        os.chdir(str(Target_DIR)+"/DEFORM")
-        for file in glob.glob("*FFD_def.su2"):
-            shutil.copy(file, Root)
-        os.chdir(Root)
-        for file in glob.glob("*FFD_def.su2"):
-            os.rename(file, meshName)
-    else:
-        print("Target directory does not exist but solution has converged")
-        print("Renaming WORKDIR to ", Target_DIR)
-        os.rename("WORKDIR", Target_DIR)
-        # Now go into the target directory and move the mesh to root
-        os.chdir(str(Target_DIR)+"/DEFORM")
-        for file in glob.glob("*FFD_def.su2"):
-            shutil.copy(file, Root)
-        os.chdir(Root)
-        for file in glob.glob("*FFD_def.su2"):
-            os.rename(file, meshName)
-
-    return Last_FEval
-    
-
-def initialize_file(filename):
-    """
-    Initializes the CSV file with the header.
-    :param filename: Name of the file to initialize.
-    """
-    header = ['ITER', 'FEVAL', 'OBJ', 'OPTIMALITY', 'CMY FSB', 'FUSE VOL FSB', 'WING VOL FSB']
-    #header = ['ITER', 'FEVAL', 'OBJ', 'OPTIMALITY', 'FUSE VOL FSB', 'WING VOL FSB']
-
-    with open(filename, 'a', newline='') as csvfile:
-        writer = csv.writer(csvfile, delimiter=',', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(header)
-
-    # Define a callback function
-def store_data(xk, filename):
-    """
-    Queries variour values from driver class and writes them to
-    a csv file.
-    """
-    global iteration
-
-    # Query objective function value and optimality 
-    objective_value = driver.funRec(xk)                                          
-    optimality = np.linalg.norm(driver.grad(xk),ord=np.inf)    
-                             
-    # Query wing moment constraint feasibility
-    #feasb_mom = driver._eval_g(xk,0)                                          
-    #mom_jacobian = np.linalg.norm(driver._eval_jac_g(xk,0))    
-
-    # Query fuselage volume constraint feasibility
-    #fuse_vol = driver._eval_g(xk,1)                                          
-    #area_jacobian = np.linalg.norm(driver._eval_jac_g(xk,1))      
-
-    # Query wing volume constraint feasibility
-    #wing_vol = driver._eval_g(xk,2)                                          
-    #area_jacobian = np.linalg.norm(driver._eval_jac_g(xk,1)) 
-
-    # Get counter for feval
-    counter = driver.fEvalCtr()        
-
-   #data = [iteration, counter, objective_value, optimality, fuse_vol, wing_vol]
-    data = [iteration, counter, objective_value, optimality]
-    formatted_data = [str(data[0]), str(data[1])] + ["{:.6e}".format(value) for value in data[2:]]
-
-    iteration += 1
-
-   
-    with open(filename, 'a', newline='') as csvfile:
-        writer = csv.writer(csvfile, delimiter = ',')
-        writer.writerow(formatted_data)
-
-
-
-# OPTIMZIATION RESTART SETTINGS---------------#
-Restart = False
-
-# GLobal variable to store the iteration value
-if Restart:
-    # Get the latest optimization iteration from the csv file
-    iteration = getLatestIter() + 1
-else:
-    # Starting a new run, set starting iteration to 1
-    iteration = 1
+from numpy import ones, array, zeros
 
 # Design Variables-----#
 nDV = 599
@@ -430,6 +305,19 @@ lbMult = np.zeros(nDV)
 ubMult= np.zeros(nDV)
 conMult = np.zeros(ncon)
 
+# WARM START PARAMETERS
+#x0 = array([])
+
+print("Initial Design Variable vector:")
+print(x0)
+
+
+#ubMult = array([])
+
+#lbMult = array([])
+
+#conMult = array([])
+
 
 
 # NLP settings
@@ -449,4 +337,17 @@ nlp.set(warm_start_init_point = "no",
 
 x, obj, status = nlp.solve(x0, mult_g = conMult, mult_x_L = lbMult, mult_x_U = ubMult)
 
-# report the results
+# Print the optimized results---->
+
+print("Primal variables solution")
+print("x: ", x)
+
+print("Bound multipliers solution: Lower bound")
+print("lbMult: ", lbMult)
+
+print("Bound multipliers solution: Upper bound")
+print("ubMult: ", ubMult)
+
+
+print("Constraint multipliers solution")
+print("lambda:",conMult)
