@@ -18,6 +18,7 @@ while True:
     print("Generating data...")
     time.sleep(0.2)
     u = 1 -2 * np.random.rand(n)
+    print(u)
 
     # Advance time
     t = t + dt

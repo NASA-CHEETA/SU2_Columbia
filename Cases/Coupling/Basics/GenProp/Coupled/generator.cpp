@@ -3,8 +3,25 @@
 #include <chrono>
 #include <thread>
 #include <random>
+#include "precice/precice.hpp"
 
-int main() {
+int main() 
+{
+
+    /* Precice setup */
+    std::string participant_name = "Generator";  /* Name of this participant */
+    std::string configFileName = "precice-config.xml"; /* Precice configuration file */
+    std::string meshName;
+    std::string dataWriteName;
+    std::string dataReadName;
+
+    /* Assume single process execution (no-mpi) */
+    int solver_process_index = 0;
+    int solver_process_size=  1;
+
+    /* Setup the API object for Preice */
+    precice::Participant participant(participant_name, configFileName, solver_process_index, solver_process_size);
+
     const int n = 20;
     const double dn = 1.0 / n;
     const double dt = 0.01;
