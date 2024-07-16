@@ -224,7 +224,7 @@ GlobalScale = 1
 ConScale = 1
 FtolCr = 1E-12
 Ftol = FtolCr * GlobalScale
-OptIter = 15
+OptIter = 10
 
 # FUSELAGE AND WING VOLUME SCALING PARAMETERS (MKIII)
 BSL_FUSE_VOL = 402.277
@@ -232,11 +232,11 @@ FACTOR_FV = 0.99
 TRG_FUSE_VOL = BSL_FUSE_VOL * FACTOR_FV
 
 BSL_WING_VOL = 15.1869
-FACTOR_WV = 0.95
+FACTOR_WV = 0.99
 TRG_WING_VOL = BSL_WING_VOL * FACTOR_WV
 
 # THICKNESS BOUND (xx % of BSL value)
-THK_BND = 0.50
+THK_BND = 0.75
 
 
 # Spanwise thickness values

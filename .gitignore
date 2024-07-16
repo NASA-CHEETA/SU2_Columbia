@@ -103,3 +103,4 @@ ninja
 *.vtk
 *.vtu
 *.dat
+*.csv

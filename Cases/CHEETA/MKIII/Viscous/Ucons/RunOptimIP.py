@@ -155,8 +155,8 @@ enable_adjoint = Parameter([""], LabelReplacer("%__ADJOINT__"))
 #enable_def = Parameter([""], LabelReplacer("%__DEF__"))
 
 # Replace *_def.cfg with *_FFD.cfg as required
-mesh_in = Parameter(["MESH_FILENAME= CHEETA_INV_FFD.su2"],\
-       LabelReplacer("MESH_FILENAME= CHEETA_INV_FFD_def.su2"))
+mesh_in = Parameter(["MESH_FILENAME= CHEETA_TURB_M00_FFD.su2"],\
+       LabelReplacer("MESH_FILENAME= CHEETA_TURB_M00_FFD_def.su2"))
 
 # Replace "OBJ_FUNC= SOME NAME" with "OBJ_FUNC= DRAG"
 func_drag = Parameter(["OBJECTIVE_FUNCTION= DRAG"],\
@@ -169,10 +169,10 @@ func_mom = Parameter(["OBJECTIVE_FUNCTION= MOMENT_Z"],\
 # EVALUATIONS---------------------------------------#
 
 #Number of of available cores
-ncores = "40"
+ncores = "100"
 
 # Master cfg file used for DIRECT and ADJOINT calculations
-configMaster="inv_CHEETA_FADO.cfg"
+configMaster="turb_CHEETA_FADO.cfg"
 
 # cfg file used for FUSELAGE GEOMETRY calculations
 geoMasterFuse = "CHEETA_Fuse_geo.cfg"
@@ -181,7 +181,7 @@ geoMasterFuse = "CHEETA_Fuse_geo.cfg"
 geoMasterWing = "CHEETA_Wing_geo.cfg"
 
 # Input mesh to perform deformation
-meshName="CHEETA_INV_FFD.su2"
+meshName="CHEETA_TURB_M00_FFD.su2"
 
 # Mesh deformation
 def_command = "mpirun -n " + ncores + " SU2_DEF " + configMaster
@@ -204,8 +204,8 @@ max_tries = 1
 deform = ExternalRun("DEFORM",def_command,True)
 deform.setMaxTries(max_tries)
 deform.addConfig(configMaster)
-deform.addData("CHEETA_INV_FFD.su2")
-deform.addExpected("CHEETA_INV_FFD_def.su2")
+deform.addData("CHEETA_TURB_M00_FFD.su2")
+deform.addExpected("CHEETA_TURB_M00_FFD_def.su2")
 deform.addParameter(enable_direct)
 deform.addParameter(mesh_in)
 #deform.addParameter(enable_def)
@@ -215,7 +215,7 @@ geometryF = ExternalRun("GEOMETRY_FUSE",geo_commandFuse,True)
 geometryF.setMaxTries(max_tries)
 geometryF.addConfig(geoMasterFuse)
 geometryF.addConfig(configMaster)
-geometryF.addData("DEFORM/CHEETA_INV_FFD_def.su2")
+geometryF.addData("DEFORM/CHEETA_TURB_M00_FFD_def.su2")
 geometryF.addExpected("of_func.csv")
 geometryF.addExpected("of_grad.csv")
 
@@ -224,7 +224,7 @@ geometryW = ExternalRun("GEOMETRY_WING",geo_commandWing,True)
 geometryW.setMaxTries(max_tries)
 geometryW.addConfig(geoMasterWing)
 geometryW.addConfig(configMaster)
-geometryW.addData("DEFORM/CHEETA_INV_FFD_def.su2")
+geometryW.addData("DEFORM/CHEETA_TURB_M00_FFD_def.su2")
 geometryW.addExpected("of_func.csv")
 geometryW.addExpected("of_grad.csv")
 
@@ -232,7 +232,7 @@ geometryW.addExpected("of_grad.csv")
 direct = ExternalRun("DIRECT",cfd_command,True)
 direct.setMaxTries(max_tries)
 direct.addConfig(configMaster)
-direct.addData("DEFORM/CHEETA_INV_FFD_def.su2")
+direct.addData("DEFORM/CHEETA_TURB_M00_FFD_def.su2")
 direct.addExpected("solution.dat")
 direct.addParameter(enable_direct)
 
@@ -243,7 +243,7 @@ def makeAdjRun(name, func=None) :
     adj.setMaxTries(max_tries)
     adj.addConfig(configMaster)
     adj.addConfig(geoMasterFuse)
-    adj.addData("DEFORM/CHEETA_INV_FFD_def.su2")
+    adj.addData("DEFORM/CHEETA_TURB_M00_FFD_def.su2")
     adj.addData("DIRECT/solution.dat")
     adj.addData("DIRECT/flow.meta")
     adj.addExpected("of_grad.dat")
@@ -352,17 +352,16 @@ Ftol = FtolCr * GlobalScale
 OptIter = 1000
 
 # FUSELAGE AND WING VOLUME SCALING PARAMETERS (MKIII)
-BSL_FUSE_VOL = 415.289
+BSL_FUSE_VOL = 469.483
 FACTOR_FV = 1
 TRG_FUSE_VOL = BSL_FUSE_VOL * FACTOR_FV
 
-BSL_WING_VOL = 15.1811
+BSL_WING_VOL = 15.1923
 FACTOR_WV = 1
 TRG_WING_VOL = BSL_WING_VOL * FACTOR_WV
 
 # THICKNESS BOUND (xx % of BSL value)
 THK_BND = 0.99
-
 
 # Spanwise thickness values
 ST1_T = 0.718022
