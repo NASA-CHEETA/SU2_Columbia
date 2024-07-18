@@ -12,7 +12,7 @@ import ipyopt
 from numpy import ones, array, zeros
 
 # Design Variables-----#
-nDV = 252
+nDV = 240
 x0 = np.zeros((nDV,))
 
 # Define InputVariable class object: ffd
